@@ -21,35 +21,35 @@ from sl1m.solver import Solvers
 import sl1m
 import sl1m.tools.plot_tools as plot
 
+
 SOLVER = Solvers.GUROBI #GUROBI
 
 GAIT = [np.array([1, 0]), np.array([0, 1])]
 
-#number of steps
-N_STEPS = 12
-
 #constraints path
-#paths = os.path.abspath("/home/alouahadj/developpement/sl1m/sl1m/stand_alone_scenarios/constraints_files")
 paths = ["/home/alouahadj/developpement/sl1m/sl1m/stand_alone_scenarios/constraints_files/","/home/alouahadj/developpement/sl1m/sl1m/stand_alone_scenarios/constraints_files/"]
+
 limbs = ["LF", "RF"]
 suffix_com = "_effector_frame_quasi_static_reduced.obj"
 suffix_feet = "_reduced.obj"
 
-
+#number of steps
+N_STEPS = 12
 
 def callback(msg):
+    #Variables declaration
     goal=[]
     zmax = 0.0
-    #plt.close()
     surfaces = []
     allPlan = []
     nbSurfaces = len(msg.polygonArray)
     nbPointsInSurface = 0
+
+    #TODO delete it
     #Adding the floor
     floor = [[0., 3., 0.], [-3, 3., 0.], [-3, -3., 0.], [0., -3., 0.]]
     allPlan.append(np.array(floor).T)
     #first stair
-    #TODO delete it
     stair = [[-1, -1, 0.12], [-1, 1., 0.12], [-1.5, 1., 0.12], [-1.5, -1., 0.12]]
     allPlan.append(np.array(stair).T)
 
@@ -58,7 +58,6 @@ def callback(msg):
     rospy.loginfo('Number of surfaces : {}'.format(nbSurfaces))
 
     #Getting the list of surfaces
-
     for i in range(nbSurfaces):
         nbPointsInSurface = len(msg.polygonArray[i].polygon.points)
         l=[]
@@ -67,7 +66,7 @@ def callback(msg):
             lbis=[msg.polygonArray[i].polygon.points[j].x,msg.polygonArray[i].polygon.points[j].y,msg.polygonArray[i].polygon.points[j].z]
             l.append(lbis)
             
-        #get goal surface
+        #get goal surface (highest)
         if lbis[2] > zmax :
             goal = l
             zmax = lbis[2]
@@ -76,9 +75,9 @@ def callback(msg):
         allPlan.append(al)
     #add goal surface
     goal = np.array(goal).T
-    #allPlan.append(goal)
 
     surfaces =[[allPlan] for _ in range (N_STEPS-1)]
+    #Adding the goal surface at the end
     surfaces.append([[goal]])
 
     #Using solver
@@ -86,7 +85,6 @@ def callback(msg):
     R = [np.identity(3)] * N_STEPS
     t_1 = clock()
 
-    #initial_contacts = [np.array([0,  -0.1,  0]), np.array([0,  0.1,  0])]
     initial_contacts = [np.array([-2,  -0.1,  0]), np.array([-2,  0.1,  0])]
     t_2 = clock()
 
