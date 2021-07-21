@@ -105,7 +105,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-   INCLUDE_DIRS include
+#   INCLUDE_DIRS include
 #  LIBRARIES sl1m_wrapper
    CATKIN_DEPENDS roscpp rospy std_msgs message_runtime custom_planner_msgs
 #  DEPENDS system_lib
