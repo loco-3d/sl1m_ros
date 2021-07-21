@@ -21,11 +21,11 @@ import sl1m.tools.plot_tools as plot
 
 #Imports for the action server
 import actionlib
-from pal_footstep_planner_msgs.msg import PlanWalkActionGoal, PlanWalkActionResult, PlanWalkAction
+from pal_footstep_planner_msgs.msg import FootStepPlanAction, FootStepPlanActionGoal, FootStepPlanResult
 from gazebo_msgs.msg import ModelStates
 from pal_footstep_planner_msgs.msg import FootstepData
 from geometry_msgs.msg import Vector3
-
+from std_srvs.srv import TriggerRequest, TriggerResponse, Trigger
 
 SOLVER = Solvers.GUROBI #GUROBI
 
@@ -196,14 +196,15 @@ class FootstepPlannerSl1m:
 
 class ActionServ(object):
 
-    _result = PlanWalkActionResult()
 
     def __init__(self,name):
         self._action_name = name
-        self._as = actionlib.SimpleActionServer(self._action_name, PlanWalkAction, execute_cb=self.execute_cb, auto_start=False)
-        self._as.start()
+        self._as = actionlib.SimpleActionServer(self._action_name, FootStepPlanAction, execute_cb=self.execute_cb, auto_start=False)
+        self.configure_srv = rospy.Service("robot_footstep_planner/configure", Trigger, self.configure_cb)
+        self._result = FootStepPlanResult()
         self.footStepPlan = FootstepPlannerSl1m()
         self.cost = {"final_com": [1.0, [0.0,0.0,0.0]]}
+        self._as.start()
     
     #set the final position
     def setCost(self,g):
@@ -219,18 +220,26 @@ class ActionServ(object):
 
     #Callback function
     def execute_cb(self,goal):
+        rospy.loginfo('Executing callback of %s' % self._action_name)
         self.setCost(goal)
 
         if self.footStepPlan.getSurface() != [] :
-            self._result.result.footsteps=self.footStepPlan.plan(self.getCost())
-            self._result.result.error_type = 0
+            self._result.footsteps=self.footStepPlan.plan(self.getCost())
+            self._result.error_type = 0
         
         self._result.header.stamp = rospy.get_rostime()
+        rospy.loginfo('Callback return succeed for Action %s' % self._action_name)
         self._as.set_succeeded(self._result)
 
+    def configure_cb(self, req):
+        rospy.loginfo('Executing Configure of %s' % self._action_name)
+        res = TriggerResponse()
+        res.success = True
+        res.message = ""
+        return res
 
 
 if __name__ == '__main__':
-    rospy.init_node("plan_walk")
-    server = ActionServ(rospy.get_name())
+    rospy.init_node("robot_footstep_planner")
+    server = ActionServ("robot_footstep_planner")
     rospy.spin()
