@@ -44,7 +44,7 @@ def callback(msg):
     allPlan = []
     nbSurfaces = len(msg.polygonArray)
     nbPointsInSurface = 0
-
+"""
     #TODO delete it
     #Adding the floor
     floor = [[0., 3., 0.], [-3, 3., 0.], [-3, -3., 0.], [0., -3., 0.]]
@@ -52,7 +52,7 @@ def callback(msg):
     #first stair
     stair = [[-1, -1, 0.12], [-1, 1., 0.12], [-1.5, 1., 0.12], [-1.5, -1., 0.12]]
     allPlan.append(np.array(stair).T)
-
+"""
     nb=len(msg.polygonArray[0].polygon.points)
     rospy.loginfo('New message')
     rospy.loginfo('Number of surfaces : {}'.format(nbSurfaces))
