@@ -1,0 +1,44 @@
+# These are non functional parameters but exhaustively list the sl1m_ros package parameters
+# The path are taken from the talos-rbprm package.
+
+sl1m:
+    numerical_solver: "GUROBI" # can be "QUADPROG", "LINPROG", "GLPK", "GUROBI", "CVXPY" default is "GUROBI"
+    paths:
+        - /opt/openrobots/share/talos-rbprm/com_inequalities/feet_quasi_flat/
+        - /opt/openrobots/share/talos-rbprm/relative_effector_positions/ # must contain the end slash
+    limbs:
+        - "LF"
+        - "RF"
+    suffix_com: "_effector_frame_REDUCED.obj"
+    suffix_feet: "_quasi_flat_REDUCED.obj"
+
+    # Gait of the robot, list of contact sequence that will be repeated.
+    gait:
+        - [1, 0]
+        - [0, 1]
+
+    # Simply use matplotlib to display the results. Not recommended online.
+    plot: False
+
+    # WARNING, N_STEPS means the data needs to be written as much as 'nb_steps'.
+    # If one element only is given the target will be REPEATED for ALL steps.
+    # This is a dictionary and all entry are OPTIONAL!!
+    cost: {
+      # Compute a cost to keep the final CoM position close to a target one
+      "final_com": [1.0, [0.3, 0, 1.4]],
+      # Compute a cost to keep the final end effectors positions closed to target ones 
+      "end_effector_positions": [1.0, [[0.3,  0.1,  0], [0.3,  -0.1,  0]]],
+      # Compute a cost to keep the effectors with a specified distance to the base
+      "effector_positions": [1.0, [N_STEPS*[[0.0,  -0.04]], N_STEPS*[[0.0,  -0.04]]]],
+      # Compute a cost to keep the com in X,Y axis close to a target com at each phase
+      "coms_xy": [1.0, N_STEPS*[[0,0, 0.9]]],
+      # Compute a cost to keep the com in Z axis close to a target com at each phase
+      "coms_z": [1.0, N_STEPS*[[0,0, 0.9]]],
+      # Compute a cost to keep the com close to a target com in X,Y,Z axis at each phase
+      "coms_3D": [1.0, N_STEPS*[[0,0, 0.9]]],
+      # Compute a cost to keep the feet relative positions as close as possible from the initial ones
+      "posture": [1.0],
+      # Compute a cost to keep the step sizes as close as possible of a target step size
+      "step_size": [1.0, [0.2, 0.0]],
+    }
+    nb_steps: 4

@@ -1,0 +1,3 @@
+rosrun sl1m_ros sl1m_wrapper_node.py
+
+rostopic pub /sl1m_wrapper_node/polygons visualization_msgs/MarkerArray "[{ header: {seq: 1, stamp: {secs: 0, nsecs: 0}, frame_id: /robot_base_link}, ns: '', id: 0, type: 6, action: 0, pose: { orientation: { w: 1.0 } }, scale: {x: 0.1, y: 1, z: 1}, points: [ {x: -5, y: -5}, {x: 5, y: -5}, {x: 5, y: 5}, {x: -5, y: 5}, {x: -5, y: -5} ], colors: [ { r: 1, a: 1 }, { g: 1, a: 1 } ] }]"
