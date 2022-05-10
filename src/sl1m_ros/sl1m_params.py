@@ -8,6 +8,7 @@ class Sl1mParameters:
     def __init__(self) -> None:
             
         # public params
+        self.solver_method = "MIP"
         self.paths = []
         self.limbs = []
         self.suffix_com = ""
@@ -35,6 +36,7 @@ class Sl1mParameters:
             return Solvers.CVXPY
 
     def get_ros_param(self):
+        self.solver_method = self._get_param("/sl1m/solver_method")
         self._numerical_solver = self._get_param("/sl1m/numerical_solver")
         self.paths = self._get_param("sl1m/paths")
         self.limbs = self._get_param("sl1m/limbs")
@@ -60,6 +62,9 @@ class Sl1mParameters:
         for gait_el in self.gait:
             assert type(gait_el) is list
 
+        for i in range(len(self.gait)):
+            self.gait[i] = np.array(self.gait[i])
+
         # assert sanity checks on content
         if self.cost:
             pass
@@ -77,6 +82,7 @@ class Sl1mParameters:
 
     def __repr__(self):
         ret = "Sl1mParameters\n"
+        ret += "    - solver_method = " + str(self.solver_method) + "\n"
         ret += "    - numerical_solver = " + str(self._numerical_solver) + "\n"
         ret += "    - paths = " + str(self.paths) + "\n"
         ret += "    - limbs = " + str(self.limbs) + "\n"

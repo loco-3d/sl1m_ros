@@ -22,7 +22,7 @@ class Sl1mParametersTalos(Sl1mParameters):
         self.limbs = ["LF", "RF"]
 
         # number of steps
-        self.nb_steps = 12
+        self.nb_steps = 4
 
         # Cost
         self.cost = {

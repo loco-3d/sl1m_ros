@@ -11,10 +11,11 @@ sl1m:
     gait:
         - [1, 0]
         - [0, 1]
-    plot: True
-    nb_steps: 12
+    plot: false
+    nb_steps: 4
     cost: {
       # Compute a cost to keep the final CoM position close to a target one
       end_effector_positions: [1.0, [[0.3, 0.1, 0.0], [0.3, -0.1, 0.0]]],
     }
     optimize_com: false
+    rate: 10

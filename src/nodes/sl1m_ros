@@ -18,9 +18,7 @@ def main():
     sl1m_node = Sl1mNode()
 
     while not rospy.is_shutdown():
-        sl1m_node.plot_if_results()
-        sleep(0.1)
-
+        sl1m_node.run()
 
 if __name__ == '__main__':
     main()
