@@ -15,9 +15,6 @@ import sl1m.tools.plot_tools as plot
 
 from sl1m_ros.sl1m_params import Sl1mParameters
 
-# TODO remove me
-from sl1m_ros.sl1m_params_talos import Sl1mParametersTalos
-
 
 class Sl1mNode:
     def __init__(self):

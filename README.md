@@ -1,3 +1,22 @@
-rosrun sl1m_ros sl1m_wrapper_node.py
+## Sl1m ROS
 
-rostopic pub /sl1m_wrapper_node/polygons visualization_msgs/MarkerArray "[{ header: {seq: 1, stamp: {secs: 0, nsecs: 0}, frame_id: /robot_base_link}, ns: '', id: 0, type: 6, action: 0, pose: { orientation: { w: 1.0 } }, scale: {x: 0.1, y: 1, z: 1}, points: [ {x: -5, y: -5}, {x: 5, y: -5}, {x: 5, y: 5}, {x: -5, y: 5}, {x: -5, y: -5} ], colors: [ { r: 1, a: 1 }, { g: 1, a: 1 } ] }]"
+This is a ROS wrapper around the sl1m package.
+
+### Build the package to install it
+
+Clone the repository in your catkin workspace and then do `catkin build`
+
+### Run demo
+
+There is a demo self contained roslaunch allowing you to optimize a 
+trajectory for a simple biped robot from:
+- Left foot pose: [-0.2, 0.1, 0.0]
+- Right foot pose: [-0.2, -0.1, 0.0]
+to:
+- Left foot pose: [0.3, 0.1, 0.0]
+- Right foot pose: [0.3, -0.1, 0.0]
+In 4 steps.
+```
+source install/setup.bash
+roslaunch sl1m_ros demo_sl1m_ros.launch
+```

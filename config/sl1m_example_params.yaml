@@ -1,4 +1,6 @@
-# These are non functional parameters but exhaustively list the sl1m_ros package parameters
+# WARNING!!!!!!
+# These are non functional parameters but exhaustively list the sl1m_ros package
+# parameters.
 # The path are taken from the talos-rbprm package.
 
 sl1m:
