@@ -12,6 +12,7 @@
   <build_depend>message_generation</build_depend>
 
   <depend>rospy</depend>
+  <depend>sl1m</depend>
   <depend>visualization_msgs</depend>
   <depend>tf2_msgs</depend>
     

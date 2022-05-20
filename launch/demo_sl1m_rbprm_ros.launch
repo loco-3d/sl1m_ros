@@ -2,14 +2,16 @@
   
   <rosparam command="load" file="$(find sl1m_ros)/config/sl1m_talos.yaml" />
 
-  <node name="sl1m" pkg="sl1m_ros" type="sl1m_ros" output="screen"/>
+  <node name="sl1m" pkg="sl1m_ros" type="sl1m_ros" output="screen" launch-prefix="xterm -hold -e"/>
+
+  <node name="sl1m" pkg="sl1m_ros" type="hpp-rbprm-server" output="screen" launch-prefix="xterm -hold -e"/>
 
   <node name="surface_publisher" pkg="rostopic" type="rostopic"
         args='pub /sl1m_ros/polygons visualization_msgs/MarkerArray "[ {points: [ {x: 5, y: 5}, {x: -5, y: 5}, {x: -5, y: -5}, {x: 5, y: -5} ] } ]"'
-        output="screen"/>
+      />
 
   <node name="current_contact_publisher" pkg="rostopic" type="rostopic"
         args='pub /sl1m_ros/current_contact tf2_msgs/TFMessage "[ {transform: { translation: { x: -0.2, y: 0.1, z: 0} } } ,{transform: { translation: { x: -0.2, y: -0.1, z: 0}}}]"'
-        output="screen"/>
+      />
 
 </launch>
