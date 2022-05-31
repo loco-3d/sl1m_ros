@@ -27,7 +27,7 @@ class Sl1mParametersTalos(Sl1mParameters):
         # Cost
         self.cost = {
             # Compute a cost to keep the final CoM position close to a target one
-            "end_effector_positions": [1.0, [[0.3, 0.1, 0.0], [0.3, -0.1, 0.0]]],
+            "end_effector_positions": [1.0, [[0.3, 0.1, 0.0, 0,0,0,1], [0.3, -0.1, 0.0, 0,0,0,1]]],
         }
 
         self.optimize_com = False

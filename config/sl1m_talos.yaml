@@ -15,7 +15,7 @@ sl1m:
     nb_steps: 4
     costs: {
       # Compute a cost to keep the final CoM position close to a target one
-      "end_effector_positions": [1.0, [[0.3, 0.1, 0.0], [0.3, -0.1, 0.0]]],
+      "end_effector_positions": [1.0, [[0.3, 0.1, 0.0, 0,0,0,1], [0.3, -0.1, 0.0, 0,0,0,1]]],
     }
     optimize_com: false
     rate: 10

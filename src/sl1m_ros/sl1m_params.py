@@ -2,7 +2,7 @@ import rospy
 import numpy as np
 from pathlib import Path
 from sl1m.solver import Solvers
-
+from sl1m_ros.average_quaternion import average_quaternion
 
 class Sl1mParameters:
     def __init__(self) -> None:
@@ -16,9 +16,10 @@ class Sl1mParameters:
         self.gait = []
         self.plot = False
         self.costs = {}
-        self.nb_steps = 0
+        self.step_length = [0.1, 0.087] # 10cm linear and 5degree yaw
         self.rate = 20
         self.optimize_com = True
+        self.final_base_orientation = np.eye(3)
 
         # private params
         self._numerical_solver = "GUROBI"
@@ -45,9 +46,10 @@ class Sl1mParameters:
         self.gait = self._get_param("sl1m/gait")
         self.plot = self._get_param("sl1m/plot")
         self.costs = self._get_param("sl1m/costs")
-        self.nb_steps = self._get_param("sl1m/nb_steps")
+        self.step_length = self._get_param("sl1m/step_length")
         self.rate = self._get_param("sl1m/rate")
         self.optimize_com = self._get_param("sl1m/optimize_com")
+        self.final_base_orientation = self._get_param("sl1m/final_base_orientation")
 
         # sanity checks on types
         assert type(self.paths) is list
@@ -66,8 +68,8 @@ class Sl1mParameters:
             self.gait[i] = np.array(self.gait[i])
 
         # assert sanity checks on content
-        if self.costs:
-            pass
+        if "end_effector_positions" in self.costs:
+            self.costs.pop("end_effector_positions")
 
     def _get_param(self, name):
         if rospy.has_param(name):
@@ -78,6 +80,7 @@ class Sl1mParameters:
                 return self.__dict__["_" + var_name]
             else:
                 return self.__dict__[var_name]
+
 
     def __repr__(self):
         ret = "Sl1mParameters\n"
@@ -90,7 +93,7 @@ class Sl1mParameters:
         ret += "    - gait = " + str(self.gait) + "\n"
         ret += "    - plot = " + str(self.plot) + "\n"
         ret += "    - costs = " + str(self.costs) + "\n"
-        ret += "    - nb_steps = " + str(self.nb_steps) + "\n"
+        ret += "    - step_length = " + str(self.step_length) + "\n"
         ret += "    - rate = " + str(self.rate) + "\n"
         ret += "    - optimize_com = " + str(self.optimize_com) + "\n"
         return ret
