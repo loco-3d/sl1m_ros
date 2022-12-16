@@ -4,9 +4,10 @@ from pathlib import Path
 from sl1m.solver import Solvers
 from sl1m_ros.average_quaternion import average_quaternion
 
+
 class Sl1mParameters:
     def __init__(self) -> None:
-            
+
         # public params
         self.use_sl1m = "MIP"
         self.paths = []
@@ -16,7 +17,7 @@ class Sl1mParameters:
         self.gait = []
         self.plot = False
         self.costs = {}
-        self.step_length = [0.1, 0.087] # 10cm linear and 5degree yaw
+        self.step_length = [0.1, 0.087]  # 10cm linear and 5degree yaw
         self.rate = 20
         self.optimize_com = True
         self.final_base_orientation = np.eye(3)
@@ -80,7 +81,6 @@ class Sl1mParameters:
                 return self.__dict__["_" + var_name]
             else:
                 return self.__dict__[var_name]
-
 
     def __repr__(self):
         ret = "Sl1mParameters\n"

@@ -133,9 +133,7 @@ class Sl1mNode:
                 msg.transforms[i].transform.rotation.w,
             ]
         ori = average_quaternion(self.destination_orientations)
-        self.destination_orientation = Quaternion(
-            ori[3], ori[0], ori[1], ori[2]
-        )
+        self.destination_orientation = Quaternion(ori[3], ori[0], ori[1], ori[2])
         self.destination_contacts_frame_id = msg.transforms[0].header.frame_id
         self.destination_contacts_mutex.release()
 
@@ -155,9 +153,7 @@ class Sl1mNode:
 
     def plot_if_results(self, surfaces, initial_contacts, result):
         if self.params.plot:
-            self.ax = sl1m_plot.draw_scene(
-                surfaces, self.params.gait, ax=self.ax
-            )
+            self.ax = sl1m_plot.draw_scene(surfaces, self.params.gait, ax=self.ax)
             sl1m_plot.plot_initial_contacts(initial_contacts, ax=self.ax)
             if result.success:
                 sl1m_plot.plot_planner_result(
@@ -235,32 +231,27 @@ class Sl1mNode:
             t_acquiring_data = clock()
 
             # Get all polygons for all phases.
-            all_polygons = self.add_start_polygon(
-                all_polygons, initial_contacts
-            )
+            all_polygons = self.add_start_polygon(all_polygons, initial_contacts)
 
             # Compute the number of steps needed.
             flying_distance = np.linalg.norm(np.average(self.initial_contacts))
             yaw = abs(
                 matrixToRpy(
-                    (
-                        destination_orientation * initial_orientation.inverse()
-                    ).matrix()
+                    (destination_orientation * initial_orientation.inverse()).matrix()
                 )[2]
             )
             print("flying_distance = ", flying_distance)
             print("yaw = ", yaw)
             print("self.params.step_length = ", self.params.step_length)
-            nb_step = (
-                int(
-                    min(
-                        max(
-                            flying_distance / self.params.step_length[0],
-                            yaw / self.params.step_length[1],
-                            2,
-                        ) * 2,
-                        15,
+            nb_step = int(
+                min(
+                    max(
+                        flying_distance / self.params.step_length[0],
+                        yaw / self.params.step_length[1],
+                        2,
                     )
+                    * 2,
+                    15,
                 )
             )
             print("nb_step = ", nb_step)
@@ -306,38 +297,11 @@ class Sl1mNode:
                     solver=self.params.get_solver_type(),
                 )
 
-            t_end = clock()
-
             if not result.success:
                 rospy.loginfo("Result.succeded: {}".format(result.success))
                 rospy.loginfo("Result.time: {}".format(result.time))
                 rospy.loginfo(
-                    "Optimized number of steps: {}".format(
-                        self.problem.n_phases
-                    )
-                )
-                rospy.loginfo(
-                    "Total time is: {}".format(1000.0 * (t_end - t_start))
-                )
-                rospy.loginfo(
-                    "Acquiring the data takes: {}".format(
-                        1000.0 * (t_acquiring_data - t_start)
-                    )
-                )
-                rospy.loginfo(
-                    "Computing the surfaces takes : {}".format(
-                        1000.0 * (t_surface - t_acquiring_data)
-                    )
-                )
-                rospy.loginfo(
-                    "Generating the problem dictionary takes: {}".format(
-                        1000.0 * (t_problem - t_surface)
-                    )
-                )
-                rospy.loginfo(
-                    "Solving the problem takes: {}".format(
-                        1000.0 * (t_end - t_problem)
-                    )
+                    "Optimized number of steps: {}".format(self.problem.n_phases)
                 )
                 rospy.loginfo(
                     "The LP and QP optimizations take: {}".format(result.time)
@@ -346,9 +310,7 @@ class Sl1mNode:
                 rospy.loginfo(
                     "result.moving_feet_pos = {}".format(result.moving_feet_pos)
                 )
-                rospy.loginfo(
-                    "result.all_feet_pos = {}".format(result.all_feet_pos)
-                )
+                rospy.loginfo("result.all_feet_pos = {}".format(result.all_feet_pos))
                 rospy.loginfo(
                     "result.surface_indices = {}".format(result.surface_indices)
                 )
@@ -358,6 +320,22 @@ class Sl1mNode:
             result_ros = self.result_to_ros_msg(result, all_polygons)
             self.result_publisher.publish(result_ros)
 
+            t_end = clock()
+            rospy.loginfo("Total time is: {}".format((t_end - t_start)))
+            rospy.loginfo(
+                "Acquiring the data takes: {}".format((t_acquiring_data - t_start))
+            )
+            rospy.loginfo(
+                "Computing the surfaces takes : {}".format(
+                    (t_surface - t_acquiring_data)
+                )
+            )
+            rospy.loginfo(
+                "Generating the problem dictionary takes: {}".format(
+                    (t_problem - t_surface)
+                )
+            )
+            rospy.loginfo("Solving the problem takes: {}".format((t_end - t_problem)))
             ros_rate.sleep()
 
     def result_to_ros_msg(self, result, polygons):

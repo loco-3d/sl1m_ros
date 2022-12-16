@@ -7,7 +7,6 @@ from sl1m_ros.average_quaternion import average_quaternion
 
 
 class TestAverageQuaternion(unittest.TestCase):
-
     def rpyToQuaternion(self, rpy):
         return pinocchio.Quaternion(pinocchio.rpy.rpyToMatrix(rpy))
 
@@ -21,5 +20,5 @@ class TestAverageQuaternion(unittest.TestCase):
 
         q_avg = pinocchio.Quaternion(average_quaternion([q1.coeffs(), q2.coeffs()]))
         q_avg_slerp = q1.slerp(0.5, q2)
-        
+
         np.testing.assert_almost_equal(q_avg.coeffs(), q_avg_slerp.coeffs())
