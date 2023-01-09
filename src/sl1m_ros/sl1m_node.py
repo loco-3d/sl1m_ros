@@ -251,7 +251,7 @@ class Sl1mNode:
                         2,
                     )
                     * 2,
-                    15,
+                    self.params.nb_steps_max,
                 )
             )
             print("nb_step = ", nb_step)

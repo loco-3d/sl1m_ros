@@ -21,6 +21,7 @@ class Sl1mParameters:
         self.rate = 20
         self.optimize_com = True
         self.final_base_orientation = np.eye(3)
+        self.nb_steps_max = 100
 
         # private params
         self._numerical_solver = "GUROBI"
@@ -51,6 +52,7 @@ class Sl1mParameters:
         self.rate = self._get_param("sl1m/rate")
         self.optimize_com = self._get_param("sl1m/optimize_com")
         self.final_base_orientation = self._get_param("sl1m/final_base_orientation")
+        self.nb_steps_max = self._get_param("sl1m/nb_steps_max")
 
         # sanity checks on types
         assert type(self.paths) is list
@@ -64,6 +66,7 @@ class Sl1mParameters:
         assert type(self.gait) is list
         for gait_el in self.gait:
             assert type(gait_el) is list
+        assert type(self.nb_steps_max) is int
 
         for i in range(len(self.gait)):
             self.gait[i] = np.array(self.gait[i])
