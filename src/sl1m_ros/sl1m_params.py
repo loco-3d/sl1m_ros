@@ -6,7 +6,7 @@ from sl1m_ros.average_quaternion import average_quaternion
 
 
 class Sl1mParameters:
-    def __init__(self) -> None:
+    def __init__(self):
 
         # public params
         self.use_sl1m = "MIP"

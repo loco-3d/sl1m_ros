@@ -3,8 +3,8 @@ from sl1m_ros.sl1m_params import Sl1mParameters
 
 
 class Sl1mParametersTalos(Sl1mParameters):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self):
+        super(Sl1mParametersTalos).__init__()
 
         # simple gait
         self.gait = [np.array([1, 0]), np.array([0, 1])]

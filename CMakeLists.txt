@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
 set(SETUPTOOLS_DEB_LAYOUT OFF CACHE BOOL "Build with old setup.py convention")
-set(SETUPTOOLS_DEB_LAYOUT OFF)
 project(sl1m_ros)
 
 ## C++ 11

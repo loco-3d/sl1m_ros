@@ -18,7 +18,10 @@ from tf2_msgs.msg import TFMessage
 import matplotlib.pyplot as plt
 
 plt.ion()
-from time import perf_counter as clock
+try:
+    from time import perf_counter as clock
+except:
+    from time import clock
 import sl1m.tools.plot_tools as sl1m_plot
 
 # local imports.
@@ -423,7 +426,7 @@ class Sl1mNode:
 
         for i, polygon in enumerate(polygons):
             marker = Marker()
-            marker.points.clear()
+            marker.points = []
             for j in range(polygon.shape[1]):
                 p = Point()
                 p.x = polygon[0, j]
