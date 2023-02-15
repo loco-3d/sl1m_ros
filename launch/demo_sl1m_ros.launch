@@ -9,7 +9,7 @@
         output="screen"/>
 
   <node name="current_contact_publisher" pkg="rostopic" type="rostopic"
-        args='pub /sl1m_ros/current_contact tf2_msgs/TFMessage "[ {transform: { translation: { x: -0.2, y: 0.1, z: 0} } } ,{transform: { translation: { x: -0.2, y: -0.1, z: 0}}}]"'
+        args='pub /sl1m_ros/initial_contact tf2_msgs/TFMessage "[ {transform: { translation: { x: -0.2, y: 0.1, z: 0} } } ,{transform: { translation: { x: -0.2, y: -0.1, z: 0}}}]"'
         output="screen"/>
 
 </launch>
