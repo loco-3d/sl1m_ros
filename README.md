@@ -20,3 +20,8 @@ In 4 steps.
 source install/setup.bash
 roslaunch sl1m_ros demo_sl1m_ros.launch
 ```
+
+Then publish the desired goal:
+```
+rostopic pub /sl1m_ros/destination_contact tf2_msgs/TFMessage "[ {transform: { translation: { x: 0.3, y: 0.1, z: 0} } } ,{transform: { translation: { x: 0.3, y: -0.1, z: 0}}}]" 
+```
