@@ -189,156 +189,166 @@ class Sl1mNode:
             destination_contacts,
             destination_orientation,
         )
+    
+    def valid_input_available(self):
+        # Work with local copies
+        (
+            all_polygons,
+            initial_contacts,
+            _,
+            destination_contacts,
+            _,
+        ) = self.get_input_copies()
+
+        if (
+            not all_polygons
+            or np.all(
+                np.array(initial_contacts)
+                == np.array([np.zeros(3), np.zeros(3)])
+            )
+            or np.all(
+                np.array(destination_contacts)
+                == np.array([np.zeros(3), np.zeros(3)])
+            )
+        ):
+            return False
+        else:
+            return True
+
+    def run_once(self):
+        # Get the time at the beginning of the loop
+        t_start = clock()
+        self.params.get_ros_param()
+        # Work with local copies
+        (
+            all_polygons,
+            initial_contacts,
+            initial_orientation,
+            destination_contacts,
+            destination_orientation,
+        ) = self.get_input_copies()
+
+        t_acquiring_data = clock()
+
+        # Get all polygons for all phases.
+        all_polygons = self.add_start_polygon(all_polygons, initial_contacts)
+
+        # Compute the number of steps needed.
+        flying_distance = np.linalg.norm(np.average(self.initial_contacts))
+        yaw = abs(
+            matrixToRpy(
+                (destination_orientation * initial_orientation.inverse()).matrix()
+            )[2]
+        )
+        print("flying_distance = ", flying_distance)
+        print("yaw = ", yaw)
+        print("self.params.step_length = ", self.params.step_length)
+        nb_step = int(
+            min(
+                max(
+                    flying_distance / self.params.step_length[0],
+                    yaw / self.params.step_length[1],
+                    2,
+                )
+                * 2,
+                self.params.nb_steps_max,
+            )
+        )
+        print("nb_step = ", nb_step)
+
+        # Getting the list of surfaces
+        surfaces = nb_step * [[all_polygons]]
+
+        # Update the orientation and cost:
+        self.params.costs["end_effector_positions"] = [
+            1.0,
+            [v.tolist() for v in destination_contacts],
+        ]
+        # Slerp between initial and final orientation
+        slerp_dt = np.arange(0.0, 1.0, 1.0 / (nb_step - 1)).tolist() + [1.0]
+        base_orientations = [
+            self.initial_orientation.slerp(
+                dt, self.destination_orientation
+            ).matrix()
+            for dt in slerp_dt
+        ]
+
+        t_surface = clock()
+
+        self.problem.generate_problem(
+            base_orientations, surfaces, self.params.gait, initial_contacts
+        )
+
+        t_problem = clock()
+
+        if self.params.use_sl1m:
+            result = solve_L1_combinatorial(
+                self.problem,
+                costs=self.params.costs,
+                com=self.params.optimize_com,
+                lp_solver=self.params.get_solver_type(),
+                qp_solver=self.params.get_solver_type(),
+            )
+        else:
+            result = solve_MIP(
+                self.problem,
+                costs=self.params.costs,
+                com=self.params.optimize_com,
+                solver=self.params.get_solver_type(),
+            )
+
+        if not result.success:
+            rospy.loginfo("Result.succeded: {}".format(result.success))
+            rospy.loginfo("Result.time: {}".format(result.time))
+            rospy.loginfo(
+                "Optimized number of steps: {}".format(self.problem.n_phases)
+            )
+            rospy.loginfo(
+                "The LP and QP optimizations take: {}".format(result.time)
+            )
+            rospy.loginfo("result.coms = {}".format(result.coms))
+            rospy.loginfo(
+                "result.moving_feet_pos = {}".format(result.moving_feet_pos)
+            )
+            rospy.loginfo("result.all_feet_pos = {}".format(result.all_feet_pos))
+            rospy.loginfo(
+                "result.surface_indices = {}".format(result.surface_indices)
+            )
+
+        self.plot_if_results(all_polygons, initial_contacts, result)
+
+        result_ros = self.result_to_ros_msg(result, all_polygons)
+        rospy.loginfo("Solution found, publishing it on /sl1m_ros/solution")
+        self.result_publisher.publish(result_ros)
+
+        t_end = clock()
+        rospy.loginfo("Total time is: {}".format((t_end - t_start)))
+        rospy.loginfo(
+            "Acquiring the data takes: {}".format((t_acquiring_data - t_start))
+        )
+        rospy.loginfo(
+            "Computing the surfaces takes : {}".format(
+                (t_surface - t_acquiring_data)
+            )
+        )
+        rospy.loginfo(
+            "Generating the problem dictionary takes: {}".format(
+                (t_problem - t_surface)
+            )
+        )
+        rospy.loginfo("Solving the problem takes: {}".format((t_end - t_problem)))
+        return result
 
     def run(self):
         no_valid_input = True
         ros_rate = rospy.Rate(self.params.rate)
+        valid_input = False
         while not rospy.is_shutdown():
-            # Get the time at the beginning of the loop
-            t_start = clock()
-            self.params.get_ros_param()
-            while no_valid_input:
-                # Work with local copies
-                (
-                    all_polygons,
-                    initial_contacts,
-                    _,
-                    destination_contacts,
-                    _,
-                ) = self.get_input_copies()
-
-                if (
-                    not all_polygons
-                    or np.all(
-                        np.array(initial_contacts)
-                        == np.array([np.zeros(3), np.zeros(3)])
-                    )
-                    or np.all(
-                        np.array(destination_contacts)
-                        == np.array([np.zeros(3), np.zeros(3)])
-                    )
-                ):
-                    time.sleep(0.05)
-                else:
-                    no_valid_input = False
-
-            # Work with local copies
-            (
-                all_polygons,
-                initial_contacts,
-                initial_orientation,
-                destination_contacts,
-                destination_orientation,
-            ) = self.get_input_copies()
-
-            t_acquiring_data = clock()
-
-            # Get all polygons for all phases.
-            all_polygons = self.add_start_polygon(all_polygons, initial_contacts)
-
-            # Compute the number of steps needed.
-            flying_distance = np.linalg.norm(np.average(self.initial_contacts))
-            yaw = abs(
-                matrixToRpy(
-                    (destination_orientation * initial_orientation.inverse()).matrix()
-                )[2]
-            )
-            print("flying_distance = ", flying_distance)
-            print("yaw = ", yaw)
-            print("self.params.step_length = ", self.params.step_length)
-            nb_step = int(
-                min(
-                    max(
-                        flying_distance / self.params.step_length[0],
-                        yaw / self.params.step_length[1],
-                        2,
-                    )
-                    * 2,
-                    self.params.nb_steps_max,
-                )
-            )
-            print("nb_step = ", nb_step)
-
-            # Getting the list of surfaces
-            surfaces = nb_step * [[all_polygons]]
-
-            # Update the orientation and cost:
-            self.params.costs["end_effector_positions"] = [
-                1.0,
-                [v.tolist() for v in destination_contacts],
-            ]
-            # Slerp between initial and final orientation
-            slerp_dt = np.arange(0.0, 1.0, 1.0 / (nb_step - 1)).tolist() + [1.0]
-            base_orientations = [
-                self.initial_orientation.slerp(
-                    dt, self.destination_orientation
-                ).matrix()
-                for dt in slerp_dt
-            ]
-
-            t_surface = clock()
-
-            self.problem.generate_problem(
-                base_orientations, surfaces, self.params.gait, initial_contacts
-            )
-
-            t_problem = clock()
-
-            if self.params.use_sl1m:
-                result = solve_L1_combinatorial(
-                    self.problem,
-                    costs=self.params.costs,
-                    com=self.params.optimize_com,
-                    lp_solver=self.params.get_solver_type(),
-                    qp_solver=self.params.get_solver_type(),
-                )
-            else:
-                result = solve_MIP(
-                    self.problem,
-                    costs=self.params.costs,
-                    com=self.params.optimize_com,
-                    solver=self.params.get_solver_type(),
-                )
-
-            if not result.success:
-                rospy.loginfo("Result.succeded: {}".format(result.success))
-                rospy.loginfo("Result.time: {}".format(result.time))
-                rospy.loginfo(
-                    "Optimized number of steps: {}".format(self.problem.n_phases)
-                )
-                rospy.loginfo(
-                    "The LP and QP optimizations take: {}".format(result.time)
-                )
-                rospy.loginfo("result.coms = {}".format(result.coms))
-                rospy.loginfo(
-                    "result.moving_feet_pos = {}".format(result.moving_feet_pos)
-                )
-                rospy.loginfo("result.all_feet_pos = {}".format(result.all_feet_pos))
-                rospy.loginfo(
-                    "result.surface_indices = {}".format(result.surface_indices)
-                )
-
-            self.plot_if_results(all_polygons, initial_contacts, result)
-
-            result_ros = self.result_to_ros_msg(result, all_polygons)
-            self.result_publisher.publish(result_ros)
-
-            t_end = clock()
-            rospy.loginfo("Total time is: {}".format((t_end - t_start)))
-            rospy.loginfo(
-                "Acquiring the data takes: {}".format((t_acquiring_data - t_start))
-            )
-            rospy.loginfo(
-                "Computing the surfaces takes : {}".format(
-                    (t_surface - t_acquiring_data)
-                )
-            )
-            rospy.loginfo(
-                "Generating the problem dictionary takes: {}".format(
-                    (t_problem - t_surface)
-                )
-            )
-            rospy.loginfo("Solving the problem takes: {}".format((t_end - t_problem)))
+            while not valid_input:
+                time.sleep(0.05)
+                valid_input = self.valid_input_available()
+            rospy.loginfo("Valid inputs received")
+            self.run_once()
             ros_rate.sleep()
 
     def result_to_ros_msg(self, result, polygons):
