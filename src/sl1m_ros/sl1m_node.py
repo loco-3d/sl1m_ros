@@ -64,7 +64,7 @@ class Sl1mNode:
             self.current_contact_callback,
             queue_size=5,
         )
-        self.current_contact = rospy.Subscriber(
+        self.destination_contact = rospy.Subscriber(
             "/sl1m_ros/destination_contact",
             TFMessage,
             self.destination_contact_callback,
