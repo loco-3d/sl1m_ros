@@ -30,6 +30,7 @@ catkin_package(
 install(PROGRAMS
   src/nodes/sl1m_ros
   src/nodes/hpp_rbprm_server
+  src/nodes/footstep_planner_server
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

@@ -1,0 +1,15 @@
+<launch>
+  
+  <rosparam command="load" file="$(find sl1m_ros)/config/sl1m_talos.yaml" />
+
+  <node name="footstep_planner_server" pkg="sl1m_ros" type="footstep_planner_server" output="screen"/>
+
+  <node name="surface_publisher" pkg="rostopic" type="rostopic"
+        args='pub /sl1m_ros/polygons visualization_msgs/MarkerArray "[ {points: [ {x: 5, y: 5}, {x: -5, y: 5}, {x: -5, y: -5}, {x: 5, y: -5} ] } ]"'
+        output="screen"/>
+
+  <node name="current_contact_publisher" pkg="rostopic" type="rostopic"
+        args='pub /sl1m_ros/initial_contact tf2_msgs/TFMessage "[ {transform: { translation: { x: -0.75, y: 0.1, z: 0} } } ,{transform: { translation: { x: -0.75, y: -0.1, z: 0}}}]"'
+        output="screen"/>
+
+</launch>
