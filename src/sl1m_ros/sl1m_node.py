@@ -190,15 +190,45 @@ class Sl1mNode:
             destination_orientation,
         )
     
-    def valid_input_available(self):
+    def is_environment_valid(self):
         # Work with local copies
         (
             all_polygons,
+            _,
+            _,
+            _,
+            _,
+        ) = self.get_input_copies()
+        return bool(all_polygons)
+    
+    def is_initial_state_valid(self):
+        # Work with local copies
+        (
+            _,
             initial_contacts,
+            _,
+            _,
+            _,
+        ) = self.get_input_copies()
+        return not np.all(
+                np.array(initial_contacts)
+                == np.array([np.zeros(3), np.zeros(3)]))
+
+    def is_goal_valid(self):
+        # Work with local copies
+        (
+            _,
+            _,
             _,
             destination_contacts,
             _,
         ) = self.get_input_copies()
+        return not np.all(
+                np.array(destination_contacts)
+                == np.array([np.zeros(3), np.zeros(3)]))
+    
+    def valid_input_available(self):
+
 
         if (
             not all_polygons
@@ -214,25 +244,8 @@ class Sl1mNode:
             return False
         else:
             return True
-
-    def run_once(self):
-        # Get the time at the beginning of the loop
-        t_start = clock()
-        self.params.get_ros_param()
-        # Work with local copies
-        (
-            all_polygons,
-            initial_contacts,
-            initial_orientation,
-            destination_contacts,
-            destination_orientation,
-        ) = self.get_input_copies()
-
-        t_acquiring_data = clock()
-
-        # Get all polygons for all phases.
-        all_polygons = self.add_start_polygon(all_polygons, initial_contacts)
-
+        
+    def compute_nb_step(self, initial_orientation, destination_orientation):
         # Compute the number of steps needed.
         flying_distance = np.linalg.norm(np.average(self.initial_contacts))
         yaw = abs(
@@ -254,16 +267,40 @@ class Sl1mNode:
                 self.params.nb_steps_max,
             )
         )
+        return nb_step
+
+    def run_once(self, nb_step = 0, costs = {}):
+        # Get the time at the beginning of the loop
+        self.params.get_ros_param()
+        t_start = clock()
+        # Work with local copies
+        (
+            all_polygons,
+            initial_contacts,
+            initial_orientation,
+            destination_contacts,
+            destination_orientation,
+        ) = self.get_input_copies()
+
+        t_acquiring_data = clock()
+
+        # Get all polygons for all phases.
+        #all_polygons = self.add_start_polygon(all_polygons, initial_contacts)
+
+        if nb_step == 0:
+            nb_step = self.compute_nb_step(initial_orientation, destination_orientation)
         print("nb_step = ", nb_step)
 
         # Getting the list of surfaces
         surfaces = nb_step * [[all_polygons]]
 
-        # Update the orientation and cost:
-        self.params.costs["end_effector_positions"] = [
-            1.0,
-            [v.tolist() for v in destination_contacts],
-        ]
+        if len(costs) == 0:
+            costs = self.params.costs
+            # Update the orientation and cost:
+            costs["end_effector_positions"] = [
+                1.0,
+                [v.tolist() for v in destination_contacts],
+            ]
         # Slerp between initial and final orientation
         slerp_dt = np.arange(0.0, 1.0, 1.0 / (nb_step - 1)).tolist() + [1.0]
         base_orientations = [
@@ -284,7 +321,7 @@ class Sl1mNode:
         if self.params.use_sl1m:
             result = solve_L1_combinatorial(
                 self.problem,
-                costs=self.params.costs,
+                costs=costs,
                 com=self.params.optimize_com,
                 lp_solver=self.params.get_solver_type(),
                 qp_solver=self.params.get_solver_type(),
@@ -292,7 +329,7 @@ class Sl1mNode:
         else:
             result = solve_MIP(
                 self.problem,
-                costs=self.params.costs,
+                costs=costs,
                 com=self.params.optimize_com,
                 solver=self.params.get_solver_type(),
             )
