@@ -305,7 +305,7 @@ class Sl1mNode:
         slerp_dt = np.arange(0.0, 1.0, 1.0 / (nb_step - 1)).tolist() + [1.0]
         base_orientations = [
             self.initial_orientation.slerp(
-                dt, self.destination_orientation
+                dt, destination_orientation
             ).matrix()
             for dt in slerp_dt
         ]
