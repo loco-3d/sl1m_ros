@@ -6,6 +6,7 @@ import numpy as np
 
 from sl1m_ros.sl1m_node import Sl1mNode
 from sl1m_ros.average_quaternion import average_quaternion
+from sl1m_ros.visualization_tools import foosteps_to_marker_array
 from pinocchio import Quaternion
 from pinocchio.rpy import matrixToRpy
 
@@ -31,17 +32,20 @@ class ActionServ(object):
         self._action_name = name
         self._as = actionlib.SimpleActionServer(self._action_name, FootStepPlanAction, execute_cb=self.execute_cb, auto_start=False)
         self.configure_srv = rospy.Service(self._action_name+"/configure", Trigger, self.configure_cb)
-        self.visualize_publisher = rospy.Publisher("footstep_list", MarkerArray, 1)
+        self.visualize_publisher = rospy.Publisher("/footstep_list", MarkerArray, queue_size=1)
         self._result = FootStepPlanResult()
         #self.footStepPlan = FootstepPlannerSl1m()
         #self.cost = {"final_com": [1.0, [0.0,0.0,0.0]]}
         self.sl1m_node = Sl1mNode()
+        self.foot_size = [0,0, 0.02]
+        self.color_markers=[[0., 1., 0.], [1., 0. ,0.]] # green for left and red for right side
         self._as.start()
     
     def convert_sl1m_result(self, sl1m_result):
         N_STEPS = self.sl1m_node.params.nb_steps_max
         print("Result from sl1m", sl1m_result)
         print("Feet pose :", sl1m_result.all_feet_pos)
+        print ("orientations ", self.sl1m_node.destination_orientations)
 
         # FIXME: this assume that the configuration for sl1m is in the order
         #    limbs:
@@ -139,42 +143,18 @@ class ActionServ(object):
         nb_steps = int(min(self.sl1m_node.params.nb_steps_max, max(nb_steps_lin, nb_steps_rot)))
         print("Number of steps : ", nb_steps)
         return nb_steps
+    
 
     def visualize_footsteps(self, result):
-        """
-        if(getPathSize() == 0)
-        {
-            ROS_ERROR("No path generated at this moment");
-            return;
-        }
-
-        if(footsteps_visual_.markers.size() > 0)
-        {
-            visualization_msgs::MarkerArrayPtr empty_marray = emptyMarker(footsteps_visual_.markers.size());
-            FootStepList_.publish(*empty_marray);
-            ros::spinOnce();
-        }
-
-        footsteps_visual_.markers.clear();
-        footsteps_visual_index_ = 0;
-
-        if(path_.front().getLeg() == Leg::RIGHT)
-            footPoseToMarker(StartFootRight_, footsteps_visual_, footsteps_visual_index_);
-        else
-            footPoseToMarker(StartFootLeft_, footsteps_visual_, footsteps_visual_index_);
-
-        for(size_t i = 0; i < path_.size(); i++)
-        {
-            footPoseToMarker(path_[i], footsteps_visual_, footsteps_visual_index_);
-            //ros::Duration(0.8).sleep();
-            //FootStepList_.publish(footsteps_visual_);
-            //ros::spinOnce();
-        }
-
-        FootStepList_.publish(footsteps_visual_);
-        """
-        return
-
+        if rospy.has_param("/biped_walking_dcm_controller/biped_parameters/foot_description/foot_length"):
+            self.foot_size[0] = rospy.get_param("/biped_walking_dcm_controller/biped_parameters/foot_description/foot_length")
+        if rospy.has_param("/biped_walking_dcm_controller/biped_parameters/foot_description/foot_with"):
+            self.foot_size[1] = rospy.get_param("/biped_walking_dcm_controller/biped_parameters/foot_description/foot_with")
+        marker_array = foosteps_to_marker_array(result, rospy.Time.now(), self.foot_size, self.color_markers)
+        #print("Marker array for visualization size : ", len(marker_array.markers))
+        #print("array : ", marker_array)
+        self.visualize_publisher.publish(marker_array)
+        
     #Callback functions
     def execute_cb(self,goal):
         rospy.loginfo('Executing callback of %s' % self._action_name)
