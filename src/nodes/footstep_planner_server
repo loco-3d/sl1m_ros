@@ -169,7 +169,6 @@ class ActionServ(object):
             costs = self.set_goal(goal)
             nb_steps = self.compute_num_steps(goal)
             result, orientations = self.sl1m_node.run_once(nb_steps, costs)
-            orientations += [orientations[-1]] # final one need to be repeated
             result_msg = self.convert_sl1m_result(result.all_feet_pos, orientations)
             print("result = ", result)
             self.visualize_footsteps(result.all_feet_pos, orientations)

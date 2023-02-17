@@ -326,6 +326,10 @@ class Sl1mNode:
             base_orientations, surfaces, self.params.gait, initial_contacts
         )
 
+        # Add target orientation at the end of the base_orientation list
+        # it is required to have matching size between feet pose results and orientation list
+        base_orientations += [destination_orientation.matrix()]
+
         t_problem = clock()
 
         if self.params.use_sl1m:
