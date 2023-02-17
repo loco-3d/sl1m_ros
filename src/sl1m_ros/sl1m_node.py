@@ -388,7 +388,7 @@ class Sl1mNode:
         rospy.loginfo(
             "Solving the problem takes: {}".format((t_end - t_problem))
         )
-        return result
+        return result, base_orientations
 
     def run(self):
         ros_rate = rospy.Rate(self.params.rate)
