@@ -136,7 +136,9 @@ class Sl1mNode:
                 msg.transforms[i].transform.rotation.w,
             ]
         ori = average_quaternion(self.destination_orientations)
-        self.destination_orientation = Quaternion(ori[3], ori[0], ori[1], ori[2])
+        self.destination_orientation = Quaternion(
+            ori[3], ori[0], ori[1], ori[2]
+        )
         self.destination_contacts_frame_id = msg.transforms[0].header.frame_id
         self.destination_contacts_mutex.release()
 
@@ -156,7 +158,9 @@ class Sl1mNode:
 
     def plot_if_results(self, surfaces, initial_contacts, result):
         if self.params.plot:
-            self.ax = sl1m_plot.draw_scene(surfaces, self.params.gait, ax=self.ax)
+            self.ax = sl1m_plot.draw_scene(
+                surfaces, self.params.gait, ax=self.ax
+            )
             sl1m_plot.plot_initial_contacts(initial_contacts, ax=self.ax)
             if result.success:
                 sl1m_plot.plot_planner_result(
@@ -189,7 +193,7 @@ class Sl1mNode:
             destination_contacts,
             destination_orientation,
         )
-    
+
     def is_environment_valid(self):
         # Work with local copies
         (
@@ -200,7 +204,7 @@ class Sl1mNode:
             _,
         ) = self.get_input_copies()
         return bool(all_polygons)
-    
+
     def is_initial_state_valid(self):
         # Work with local copies
         (
@@ -211,8 +215,8 @@ class Sl1mNode:
             _,
         ) = self.get_input_copies()
         return not np.all(
-                np.array(initial_contacts)
-                == np.array([np.zeros(3), np.zeros(3)]))
+            np.array(initial_contacts) == np.array([np.zeros(3), np.zeros(3)])
+        )
 
     def is_goal_valid(self):
         # Work with local copies
@@ -224,13 +228,20 @@ class Sl1mNode:
             _,
         ) = self.get_input_copies()
         return not np.all(
-                np.array(destination_contacts)
-                == np.array([np.zeros(3), np.zeros(3)]))
-    
+            np.array(destination_contacts)
+            == np.array([np.zeros(3), np.zeros(3)])
+        )
+
     def valid_input_available(self):
-
-
-        if (
+        # Work with local copies
+        (
+            all_polygons,
+            initial_contacts,
+            _,
+            destination_contacts,
+            _,
+        ) = self.get_input_copies()
+        return not (
             not all_polygons
             or np.all(
                 np.array(initial_contacts)
@@ -240,17 +251,16 @@ class Sl1mNode:
                 np.array(destination_contacts)
                 == np.array([np.zeros(3), np.zeros(3)])
             )
-        ):
-            return False
-        else:
-            return True
-        
+        )
+
     def compute_nb_step(self, initial_orientation, destination_orientation):
         # Compute the number of steps needed.
         flying_distance = np.linalg.norm(np.average(self.initial_contacts))
         yaw = abs(
             matrixToRpy(
-                (destination_orientation * initial_orientation.inverse()).matrix()
+                (
+                    destination_orientation * initial_orientation.inverse()
+                ).matrix()
             )[2]
         )
         print("flying_distance = ", flying_distance)
@@ -269,7 +279,7 @@ class Sl1mNode:
         )
         return nb_step
 
-    def run_once(self, nb_step = 0, costs = {}):
+    def run_once(self, nb_step=0, costs={}):
         # Get the time at the beginning of the loop
         self.params.get_ros_param()
         t_start = clock()
@@ -285,10 +295,12 @@ class Sl1mNode:
         t_acquiring_data = clock()
 
         # Get all polygons for all phases.
-        #all_polygons = self.add_start_polygon(all_polygons, initial_contacts)
+        # all_polygons = self.add_start_polygon(all_polygons, initial_contacts)
 
         if nb_step == 0:
-            nb_step = self.compute_nb_step(initial_orientation, destination_orientation)
+            nb_step = self.compute_nb_step(
+                initial_orientation, destination_orientation
+            )
         print("nb_step = ", nb_step)
 
         # Getting the list of surfaces
@@ -304,9 +316,7 @@ class Sl1mNode:
         # Slerp between initial and final orientation
         slerp_dt = np.arange(0.0, 1.0, 1.0 / (nb_step - 1)).tolist() + [1.0]
         base_orientations = [
-            self.initial_orientation.slerp(
-                dt, destination_orientation
-            ).matrix()
+            self.initial_orientation.slerp(dt, destination_orientation).matrix()
             for dt in slerp_dt
         ]
 
@@ -347,7 +357,9 @@ class Sl1mNode:
             rospy.loginfo(
                 "result.moving_feet_pos = {}".format(result.moving_feet_pos)
             )
-            rospy.loginfo("result.all_feet_pos = {}".format(result.all_feet_pos))
+            rospy.loginfo(
+                "result.all_feet_pos = {}".format(result.all_feet_pos)
+            )
             rospy.loginfo(
                 "result.surface_indices = {}".format(result.surface_indices)
             )
@@ -373,20 +385,20 @@ class Sl1mNode:
                 (t_problem - t_surface)
             )
         )
-        rospy.loginfo("Solving the problem takes: {}".format((t_end - t_problem)))
+        rospy.loginfo(
+            "Solving the problem takes: {}".format((t_end - t_problem))
+        )
         return result
 
     def run(self):
-        no_valid_input = True
         ros_rate = rospy.Rate(self.params.rate)
-        valid_input = False
         while not rospy.is_shutdown():
-            while not valid_input:
-                time.sleep(0.05)
-                valid_input = self.valid_input_available()
-            rospy.loginfo("Valid inputs received")
-            self.run_once()
-            ros_rate.sleep()
+            if self.valid_input_available():
+                rospy.loginfo("Valid inputs received")
+                self.run_once()
+                ros_rate.sleep()    
+            else:
+                rospy.loginfo_throttle(1, "No valid input found yet")
 
     def result_to_ros_msg(self, result, polygons):
         ret = MarkerArray()

@@ -1,15 +1,23 @@
 <launch>
   
   <rosparam command="load" file="$(find sl1m_ros)/config/sl1m_talos.yaml" />
+  <rosparam name="sl1m/plot" type="bool" value="true" />
 
   <node name="sl1m" pkg="sl1m_ros" type="sl1m_ros" output="screen"/>
 
+  <node pkg="tf" type="static_transform_publisher" name="map_boradcaster" args="0 0 0 0 0 0 1 map poly 100" />
   <node name="surface_publisher" pkg="rostopic" type="rostopic"
-        args='pub /sl1m_ros/polygons visualization_msgs/MarkerArray "[ {points: [ {x: 5, y: 5}, {x: -5, y: 5}, {x: -5, y: -5}, {x: 5, y: -5} ] } ]"'
+        args='pub /sl1m_ros/polygons visualization_msgs/MarkerArray "[ {header: {frame_id: poly}, type: 4 , scale: {x: 0.1}, color: {b: 1, a: 1}, pose: {orientation: {w: 1}}, points: [ {x: 5, y: 5}, {x: -5, y: 5}, {x: -5, y: -5}, {x: 5, y: -5}, {x: 5, y: 5} ] } ]"'
         output="screen"/>
 
   <node name="current_contact_publisher" pkg="rostopic" type="rostopic"
-        args='pub /sl1m_ros/initial_contact tf2_msgs/TFMessage "[ {transform: { translation: { x: -0.2, y: 0.1, z: 0} } } ,{transform: { translation: { x: -0.2, y: -0.1, z: 0}}}]"'
+        args='pub -r 1 /sl1m_ros/initial_contact tf2_msgs/TFMessage "[ {transform: { translation: { x: -0.2, y: 0.1, z: 0} } } ,{transform: { translation: { x: -0.2, y: -0.1, z: 0}}}]"'
         output="screen"/>
+
+  <node name="destination_contact_publisher" pkg="rostopic" type="rostopic"
+        args='pub -r 1 /sl1m_ros/destination_contact tf2_msgs/TFMessage "[ {transform: { translation: { x: 0.8, y: 0.1, z: 0} } } ,{transform: { translation: { x: 0.8, y: -0.1, z: 0}}}]"'
+        output="screen"/>
+
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find sl1m_ros)/config/rviz/demo_sl1m_ros.rviz"/>
 
 </launch>

@@ -1,8 +1,6 @@
 sl1m:
     numerical_solver: "GUROBI"
-    paths:
-        - "/opt/openrobots/share/talos-rbprm/com_inequalities/feet_quasi_flat/"
-        - "/opt/openrobots/share/talos-rbprm/relative_effector_positions/"
+    package: "talos-rbprm"
     limbs:
         - "LF"
         - "RF"
@@ -13,10 +11,7 @@ sl1m:
         - [0, 1]
     plot: false
     nb_steps: 30
-    costs: {
-      # Compute a cost to keep the final CoM position close to a target one
-      "end_effector_positions": [1.0, [[0.3, 0.1, 0.0, 0,0,0,1], [0.3, -0.1, 0.0, 0,0,0,1]]],
-    }
+    costs: {}
     optimize_com: true
     rate: 10
     com_height: 0.87

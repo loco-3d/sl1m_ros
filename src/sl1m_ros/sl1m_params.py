@@ -1,4 +1,6 @@
+import os
 import rospy
+import rospkg
 import numpy as np
 from pathlib import Path
 from sl1m.solver import Solvers
@@ -11,6 +13,7 @@ class Sl1mParameters:
         # public params
         self.use_sl1m = "MIP"
         self.paths = []
+        self.package = ""
         self.limbs = []
         self.suffix_com = ""
         self.suffix_feet = ""
@@ -42,7 +45,7 @@ class Sl1mParameters:
     def get_ros_param(self):
         self.use_sl1m = self._get_param("/sl1m/use_sl1m")
         self._numerical_solver = self._get_param("/sl1m/numerical_solver")
-        self.paths = self._get_param("sl1m/paths")
+        self.package = self._get_param("sl1m/package")
         self.limbs = self._get_param("sl1m/limbs")
         self.suffix_com = self._get_param("sl1m/suffix_com")
         self.suffix_feet = self._get_param("sl1m/suffix_feet")
@@ -55,11 +58,25 @@ class Sl1mParameters:
         self.final_base_orientation = self._get_param("sl1m/final_base_orientation")
         self.nb_steps_max = self._get_param("sl1m/nb_steps_max")
         self.com_height = self._get_param("sl1m/com_height")
+        
+        # Fetch the data from the paths
+        assert type(self.paths) is list
+        rp = rospkg.RosPack()
+        package_path = Path(rp.get_path(self.package))
+        def get_path_in_package(suffix):
+            ret = Path()
+            for p in package_path.rglob("*" + suffix):
+                if p.is_file():
+                    ret = p.parent
+                    break
+            assert(ret.exists())
+            return str(ret) + os.path.sep
+        self.paths = [
+            get_path_in_package(self.suffix_com),
+            get_path_in_package(self.suffix_feet),
+        ]
 
         # sanity checks on types
-        assert type(self.paths) is list
-        for path in self.paths:
-            assert Path(path).exists()
         assert type(self.limbs) is list
         for limb in self.limbs:
             assert type(limb) is str

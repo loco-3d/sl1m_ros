@@ -15,6 +15,9 @@
   <depend>sl1m</depend>
   <depend>visualization_msgs</depend>
   <depend>tf2_msgs</depend>
+
+  <depend>hpp-rbprm</depend>
+  <depend>talos-rbprm</depend>
     
   <exec_depend>message_runtime</exec_depend>
 

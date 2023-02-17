@@ -6,9 +6,7 @@
 sl1m:
     numerical_solver: "GUROBI" # can be "QUADPROG", "LINPROG", "GLPK", "GUROBI", "CVXPY" default is "GUROBI"
     use_sl1m: false # false is using MIP, true is using L1
-    paths:
-        - /opt/openrobots/share/talos-rbprm/com_inequalities/feet_quasi_flat/
-        - /opt/openrobots/share/talos-rbprm/relative_effector_positions/ # must contain the end slash
+    package: "talos-rbprm"
     limbs:
         - "LF"
         - "RF"
