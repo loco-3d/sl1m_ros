@@ -31,15 +31,15 @@ def footpose_to_marker(position, orientation, color, size, ns, id):
 
     return marker
 
-def foosteps_to_marker_array(result, time, feet_size, colors):
+def foosteps_to_marker_array(feet_positions, orientations, time, feet_size, colors):
     array = MarkerArray()
     header = Header()
     header.frame_id = "map"
     header.stamp = time
     namespaces = ["left_foot", "right_foot"]
     id = 0
-    for i in range(1, len(result.all_feet_pos[0]) - 1): 
-        marker = footpose_to_marker(result.all_feet_pos[i%2][i+1], Quaternion.Identity(),
+    for i in range(1, len(feet_positions[0]) - 1): 
+        marker = footpose_to_marker(feet_positions[i%2][i+1], Quaternion(orientations[i+1]),
                                     colors[i%2], feet_size, namespaces[i%2], id)
         id += 1
         marker.header = header

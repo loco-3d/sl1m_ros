@@ -41,33 +41,32 @@ class ActionServ(object):
         self.color_markers=[[0., 1., 0.], [1., 0. ,0.]] # green for left and red for right side
         self._as.start()
     
-    def convert_sl1m_result(self, sl1m_result):
+    def convert_sl1m_result(self, feet_positions, orientations):
         N_STEPS = self.sl1m_node.params.nb_steps_max
-        print("Result from sl1m", sl1m_result)
-        print("Feet pose :", sl1m_result.all_feet_pos)
-        print ("orientations ", self.sl1m_node.destination_orientations)
+        print("Result from sl1m", feet_positions)
+        print("feet position size : ", len(feet_positions[0]))
+        print("base orientation size : ", len(orientations))
 
         # FIXME: this assume that the configuration for sl1m is in the order
         #    limbs:
         #- "LF"
         #- "RF"
-        leftSteps = sl1m_result.all_feet_pos[0]
-        rightSteps = sl1m_result.all_feet_pos[1]
-        assert(len(leftSteps) == len(rightSteps))
-        steps = [leftSteps,rightSteps]
+        assert(len(feet_positions[0]) == len(feet_positions[1]))
+
         footsteps =[]
         
-        print(sl1m_result)
-        print("LeftSteps : \n{} \n\nRighSteps : \n{}".format(leftSteps,rightSteps))
-
-        for i in range(1, len(leftSteps) - 1) : 
+        for i in range(1, len(feet_positions[0]) - 1) : 
             footStepDat = FootstepData()
-            footStepDat.location.x = steps[i%2][i+1][0]
-            footStepDat.location.y = steps[i%2][i+1][1]
-            footStepDat.location.z = steps[i%2][i+1][2]
+            footStepDat.location.x = feet_positions[i%2][i+1][0]
+            footStepDat.location.y = feet_positions[i%2][i+1][1]
+            footStepDat.location.z = feet_positions[i%2][i+1][2]
             #footStepDat.location.z = 0. # fix for test on robot
             footStepDat.robot_side = i%2
-            footStepDat.orientation.w = 1.
+            rot = Quaternion(orientations[i+1])
+            footStepDat.orientation.w = rot.w
+            footStepDat.orientation.x = rot.x
+            footStepDat.orientation.y = rot.y
+            footStepDat.orientation.z = rot.z
             footStepDat.origin = 1
             footsteps.append(footStepDat)
         
@@ -145,12 +144,12 @@ class ActionServ(object):
         return nb_steps
     
 
-    def visualize_footsteps(self, result):
+    def visualize_footsteps(self, feet_positions, orientations):
         if rospy.has_param("/biped_walking_dcm_controller/biped_parameters/foot_description/foot_length"):
             self.foot_size[0] = rospy.get_param("/biped_walking_dcm_controller/biped_parameters/foot_description/foot_length")
         if rospy.has_param("/biped_walking_dcm_controller/biped_parameters/foot_description/foot_with"):
             self.foot_size[1] = rospy.get_param("/biped_walking_dcm_controller/biped_parameters/foot_description/foot_with")
-        marker_array = foosteps_to_marker_array(result, rospy.Time.now(), self.foot_size, self.color_markers)
+        marker_array = foosteps_to_marker_array(feet_positions, orientations, rospy.Time.now(), self.foot_size, self.color_markers)
         #print("Marker array for visualization size : ", len(marker_array.markers))
         #print("array : ", marker_array)
         self.visualize_publisher.publish(marker_array)
@@ -169,10 +168,11 @@ class ActionServ(object):
             self.set_initial_state(goal)
             costs = self.set_goal(goal)
             nb_steps = self.compute_num_steps(goal)
-            result = self.sl1m_node.run_once(nb_steps, costs)
-            result_msg = self.convert_sl1m_result(result)
+            result, orientations = self.sl1m_node.run_once(nb_steps, costs)
+            orientations += [orientations[-1]] # final one need to be repeated
+            result_msg = self.convert_sl1m_result(result.all_feet_pos, orientations)
             print("result = ", result)
-            self.visualize_footsteps(result)
+            self.visualize_footsteps(result.all_feet_pos, orientations)
         rospy.loginfo('Callback return succeed for Action %s' % self._action_name)
         self._as.set_succeeded(result_msg)
 
