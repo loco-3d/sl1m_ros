@@ -4,6 +4,7 @@ import threading
 import time
 from copy import deepcopy
 import numpy as np
+from pinocchio import SE3
 from pinocchio import Quaternion
 from pinocchio.rpy import matrixToRpy
 
@@ -95,6 +96,10 @@ class Sl1mNode:
             (188, 189, 34),
             (23, 190, 207),
         ]
+
+        # Startup polygon is the area around the robot that is not perceived
+        # yet and assumed flat.
+        self.startup_polygon = None
 
         if self.params.plot:
             self.fig = plt.figure("sl1m_ros results")
@@ -295,7 +300,9 @@ class Sl1mNode:
         t_acquiring_data = clock()
 
         # Get all polygons for all phases.
-        # all_polygons = self.add_start_polygon(all_polygons, initial_contacts)
+        all_polygons = self.add_start_polygon(
+            all_polygons, initial_contacts, initial_orientation
+        )
 
         if nb_step == 0:
             nb_step = self.compute_nb_step(
@@ -400,7 +407,7 @@ class Sl1mNode:
             if self.valid_input_available():
                 rospy.loginfo("Valid inputs received")
                 self.run_once()
-                ros_rate.sleep()    
+                ros_rate.sleep()
             else:
                 rospy.loginfo_throttle(1, "No valid input found yet")
 
@@ -522,22 +529,38 @@ class Sl1mNode:
             ret.markers.append(marker)
         return ret
 
-    def add_start_polygon(self, all_polygons, initial_contacts, margin=0.2):
-        np_init_c = np.array(initial_contacts).T
-        x_min = np.min(np_init_c[0, :]) - margin
-        x_max = np.max(np_init_c[0, :]) + margin
-        y_min = np.min(np_init_c[1, :]) - margin
-        y_max = np.max(np_init_c[1, :]) + margin
-        z = np.average(np_init_c[2, :])
-        start_polygon = np.array(
-            [
-                [x_max, y_max, z],
-                [x_min, y_max, z],
-                [x_min, y_min, z],
-                [x_max, y_min, z],
-            ]
-        ).T
-        all_polygons.append(start_polygon)
+    def add_start_polygon(
+        self,
+        all_polygons,
+        initial_contacts,
+        base_orientation,
+        min_x_margin=0.2,
+        max_x_margin=1.0,
+        min_y_margin=0.2,
+        max_y_margin=0.2,
+    ):
+        # we only create once the initial polygon
+        if self.startup_polygon is None:
+            average_pose = np.zeros(3)
+            for pose in initial_contacts:
+                average_pose += pose
+            average_pose /= len(initial_contacts)
+            print(average_pose)
+            polygon_se3 = SE3(base_orientation.matrix(), average_pose)
+            x_min = -min_x_margin
+            x_max = +max_x_margin
+            y_min = -min_y_margin
+            y_max = +max_y_margin
+            z = np.average(polygon_se3.translation[2])
+            self.startup_polygon = np.array(
+                [
+                    polygon_se3.act(np.array([x_max, y_max, z])),
+                    polygon_se3.act(np.array([x_min, y_max, z])),
+                    polygon_se3.act(np.array([x_min, y_min, z])),
+                    polygon_se3.act(np.array([x_max, y_min, z])),
+                ]
+            ).T
+        all_polygons.append(self.startup_polygon)
         return all_polygons
 
     def color(self, i, i_max):
