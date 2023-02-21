@@ -55,20 +55,22 @@ class ActionServ(object):
 
         footsteps =[]
         
-        for i in range(1, len(feet_positions[0]) - 1) : 
-            footStepDat = FootstepData()
-            footStepDat.location.x = feet_positions[i%2][i+1][0]
-            footStepDat.location.y = feet_positions[i%2][i+1][1]
-            footStepDat.location.z = feet_positions[i%2][i+1][2]
-            #footStepDat.location.z = 0. # fix for test on robot
-            footStepDat.robot_side = i%2
-            rot = Quaternion(orientations[i+1])
-            footStepDat.orientation.w = rot.w
-            footStepDat.orientation.x = rot.x
-            footStepDat.orientation.y = rot.y
-            footStepDat.orientation.z = rot.z
-            footStepDat.origin = 1
-            footsteps.append(footStepDat)
+        for i in range(1, len(feet_positions[0]) - 1):
+            for side in range(len(feet_positions)) :
+                if feet_positions[side][i] is not None:
+                    footStepDat = FootstepData()
+                    footStepDat.location.x = feet_positions[side][i][0]
+                    footStepDat.location.y = feet_positions[side][i][1]
+                    footStepDat.location.z = feet_positions[side][i][2]
+                    #footStepDat.location.z = 0. # fix for test on robot
+                    footStepDat.robot_side = side
+                    rot = Quaternion(orientations[i])
+                    footStepDat.orientation.w = rot.w
+                    footStepDat.orientation.x = rot.x
+                    footStepDat.orientation.y = rot.y
+                    footStepDat.orientation.z = rot.z
+                    footStepDat.origin = 1
+                    footsteps.append(footStepDat)
         
         result = FootStepPlanResult()
         result.footsteps = footsteps

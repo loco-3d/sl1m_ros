@@ -300,9 +300,7 @@ class Sl1mNode:
         t_acquiring_data = clock()
 
         # Get all polygons for all phases.
-        all_polygons = self.add_start_polygon(
-            all_polygons, initial_contacts, initial_orientation
-        )
+        all_polygons = self.add_start_polygon()
 
         if nb_step == 0:
             nb_step = self.compute_nb_step(
@@ -531,22 +529,27 @@ class Sl1mNode:
 
     def add_start_polygon(
         self,
-        all_polygons,
-        initial_contacts,
-        base_orientation,
         min_x_margin=0.2,
         max_x_margin=1.0,
         min_y_margin=0.2,
         max_y_margin=0.2,
     ):
         # we only create once the initial polygon
-        if self.startup_polygon is None:
+        while self.startup_polygon is None or np.isnan(self.startup_polygon).any():
+            # Work with local copies
+            (
+                all_polygons,
+                initial_contacts,
+                initial_orientation,
+                _,
+                _,
+            ) = self.get_input_copies()
             average_pose = np.zeros(3)
             for pose in initial_contacts:
                 average_pose += pose
             average_pose /= len(initial_contacts)
             print(average_pose)
-            polygon_se3 = SE3(base_orientation.matrix(), average_pose)
+            polygon_se3 = SE3(initial_orientation.matrix(), average_pose)
             x_min = -min_x_margin
             x_max = +max_x_margin
             y_min = -min_y_margin

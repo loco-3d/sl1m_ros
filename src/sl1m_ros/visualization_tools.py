@@ -37,9 +37,11 @@ def foosteps_to_marker_array(feet_positions, orientations, time, feet_size, colo
     header.frame_id = "map"
     header.stamp = time
     namespaces = ["left_foot", "right_foot"]
-    for i in range(1, len(feet_positions[0]) - 1): 
-        marker = footpose_to_marker(feet_positions[i%2][i+1], Quaternion(orientations[i+1]),
-                                    colors[i%2], feet_size, namespaces[i%2], i-1)
-        marker.header = header
-        array.markers.append(marker)
+    for i in range(1, len(feet_positions[0]) - 1):
+        for side in range(len(feet_positions)) :
+            if feet_positions[side][i] is not None: 
+                marker = footpose_to_marker(feet_positions[side][i], Quaternion(orientations[i]),
+                                            colors[side], feet_size, namespaces[side], i)
+                marker.header = header
+                array.markers.append(marker)
     return array
