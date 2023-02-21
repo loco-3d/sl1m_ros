@@ -47,10 +47,9 @@ class ActionServ(object):
         print("feet position size : ", len(feet_positions[0]))
         print("base orientation size : ", len(orientations))
 
-        # FIXME: this assume that the configuration for sl1m is in the order
-        #    limbs:
-        #- "LF"
-        #- "RF"
+        # For PAL ros message FootStepData.robot_side 0 is LEFT, 1 is RIGHT
+        # for SL1M indexes are in the order of the the "limbs" definition in the yaml file
+
         assert(len(feet_positions[0]) == len(feet_positions[1]))
 
         footsteps =[]
