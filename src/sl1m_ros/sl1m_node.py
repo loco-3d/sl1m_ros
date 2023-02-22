@@ -530,12 +530,22 @@ class Sl1mNode:
     def add_start_polygon(
         self,
         min_x_margin=0.2,
-        max_x_margin=1.0,
+        max_x_margin=0.7,
         min_y_margin=0.2,
         max_y_margin=0.2,
     ):
+        # Work with local copies
+        (
+            all_polygons,
+            initial_contacts,
+            initial_orientation,
+            _,
+            _,
+        ) = self.get_input_copies()
         # we only create once the initial polygon
-        while self.startup_polygon is None or np.isnan(self.startup_polygon).any():
+        max_iter = 50
+        iter = 0
+        while (self.startup_polygon is None or np.isnan(self.startup_polygon).any()) and iter < 50 :
             # Work with local copies
             (
                 all_polygons,
@@ -563,6 +573,9 @@ class Sl1mNode:
                     polygon_se3.act(np.array([x_max, y_min, z])),
                 ]
             ).T
+            iter += 1
+        if iter == max_iter:
+            raise RuntimeError("Failed to add the startup polygon, nan detected")
         all_polygons.append(self.startup_polygon)
         return all_polygons
 

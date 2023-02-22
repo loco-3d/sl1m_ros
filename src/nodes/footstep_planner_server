@@ -102,9 +102,9 @@ class ActionServ(object):
         y = goal.target_pose.position.y
         z = goal.target_pose.position.z
         target_com = [x, y, z + self.sl1m_node.params.com_height]
-        costs = {"final_com": [1.0, target_com],
-                 "posture":[1]
-                 #"step_size": [10.0, 0.2]
+        costs = {"final_com": [0.1, target_com],
+                 "posture":[10],
+                 "step_size": [1 , self.sl1m_node.params.step_length],
                  }
         self.sl1m_node.destination_contacts_mutex.acquire()
         self.sl1m_node.destination_orientation = Quaternion(goal.target_pose.orientation.w,
@@ -134,13 +134,13 @@ class ActionServ(object):
 
         distance = np.linalg.norm(np.array([origin_position[0] - goal.target_pose.position.x,
                                             origin_position[1] - goal.target_pose.position.y]))
-        nb_steps_lin = abs(distance / self.sl1m_node.params.step_length[0]) * 2.
+        nb_steps_lin = abs(distance / self.sl1m_node.params.step_length[0])
 
 
         yaw = abs(matrixToRpy((rot_target * rot_origin.inverse()).matrix()))[2]
-        nb_steps_rot = (yaw / self.sl1m_node.params.step_length[1]) * 2.
+        nb_steps_rot = (yaw / self.sl1m_node.params.step_length[1])
 
-        nb_steps = int(min(self.sl1m_node.params.nb_steps_max, max(nb_steps_lin, nb_steps_rot)))
+        nb_steps = int(min(self.sl1m_node.params.nb_steps_max, max(nb_steps_lin, nb_steps_rot) * 2))
         print("Number of steps : ", nb_steps)
         return nb_steps
     
