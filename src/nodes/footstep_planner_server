@@ -121,8 +121,8 @@ class ActionServ(object):
         # compute the number of steps. 
         # simple heuristic, waiting for SL1M to come up with a better solution
         self.sl1m_node.initial_contacts_mutex.acquire()
-        origin_position = [self.sl1m_node.initial_contacts[0][0] + self.sl1m_node.initial_contacts[1][0] / 2.,
-                           self.sl1m_node.initial_contacts[0][1] + self.sl1m_node.initial_contacts[1][1] / 2.]
+        origin_position = [(self.sl1m_node.initial_contacts[0][0] + self.sl1m_node.initial_contacts[1][0]) / 2.,
+                           (self.sl1m_node.initial_contacts[0][1] + self.sl1m_node.initial_contacts[1][1]) / 2.]
         rot_origin = self.sl1m_node.initial_orientation
         self.sl1m_node.initial_contacts_mutex.release()
 
