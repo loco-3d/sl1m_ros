@@ -1,7 +1,7 @@
 # standard imports
 import colorsys
 import threading
-import time
+import math
 from copy import deepcopy
 import numpy as np
 from pinocchio import SE3
@@ -258,30 +258,58 @@ class Sl1mNode:
             )
         )
 
-    def compute_nb_step(self, initial_orientation, destination_orientation):
-        # Compute the number of steps needed.
-        flying_distance = np.linalg.norm(np.average(self.initial_contacts))
-        yaw = abs(
+    def compute_nb_steps(self, destination):
+        """Compute the distance from the initial state to the goal to reach."""
+
+        self.initial_contacts_mutex.acquire()
+        initial_position = sum(self.initial_contacts)
+        initial_position /= len(self.initial_contacts)
+        initial_orientation = self.initial_orientation
+        self.initial_contacts_mutex.release()
+
+        self.destination_contacts_mutex.acquire()
+        if type(destination) == list:
+            destination_position = sum(self.destination_contacts)
+            destination_position /= len(self.destination_contacts)
+        else:
+            destination_position = np.array(
+                [
+                    destination.target_pose.position.x,
+                    destination.target_pose.position.y,
+                    destination.target_pose.position.z,
+                ]
+            )
+        destination_orientation = self.destination_orientation
+        self.destination_contacts_mutex.release()
+
+        distance = np.linalg.norm(initial_position - destination_position)
+        distance_yaw = abs(
             matrixToRpy(
                 (
-                    destination_orientation * initial_orientation.inverse()
+                    initial_orientation * destination_orientation.inverse()
                 ).matrix()
-            )[2]
-        )
-        print("flying_distance = ", flying_distance)
-        print("yaw = ", yaw)
+            )
+        )[2]
+
+        print("Initial position ", initial_position)
+        print("Initial orientation ", initial_orientation)
+        print("Destination position ", destination_position)
+        print("Destination orientation ", destination_orientation)
+        print("distance ", distance)
+        print("distance_yaw ", distance_yaw)
         print("self.params.step_length = ", self.params.step_length)
         nb_step = int(
-            min(
-                max(
-                    flying_distance / self.params.step_length[0],
-                    yaw / self.params.step_length[1],
-                    2,
+            math.ceil(
+                min(
+                    max(
+                        distance / abs(self.params.step_length[0]),
+                        distance_yaw / abs(self.params.step_length[1]),
+                        2,
+                    ),
+                    self.params.nb_steps_max,
                 )
-                * 2,
-                self.params.nb_steps_max,
             )
-        )
+        ) + 2
         return nb_step
 
     def run_once(self, nb_step=0, costs={}):
@@ -303,9 +331,7 @@ class Sl1mNode:
         all_polygons = self.add_start_polygon()
 
         if nb_step == 0:
-            nb_step = self.compute_nb_step(
-                initial_orientation, destination_orientation
-            )
+            nb_step = self.compute_nb_steps(destination_contacts)
         print("nb_step = ", nb_step)
 
         # Getting the list of surfaces
@@ -315,13 +341,13 @@ class Sl1mNode:
             costs = self.params.costs
             # Update the orientation and cost:
             costs["end_effector_positions"] = [
-                1.0,
+                10.0,
                 [v.tolist() for v in destination_contacts],
             ]
         # Slerp between initial and final orientation
         slerp_dt = np.arange(0.0, 1.0, 1.0 / (nb_step - 1)).tolist() + [1.0]
         base_orientations = [
-            self.initial_orientation.slerp(dt, destination_orientation).matrix()
+            initial_orientation.slerp(dt, destination_orientation).matrix()
             for dt in slerp_dt
         ]
 
@@ -545,7 +571,9 @@ class Sl1mNode:
         # we only create once the initial polygon
         max_iter = 50
         iter = 0
-        while (self.startup_polygon is None or np.isnan(self.startup_polygon).any()) and iter < 50 :
+        while (
+            self.startup_polygon is None or np.isnan(self.startup_polygon).any()
+        ) and iter < 50:
             # Work with local copies
             (
                 all_polygons,
@@ -575,7 +603,9 @@ class Sl1mNode:
             ).T
             iter += 1
         if iter == max_iter:
-            raise RuntimeError("Failed to add the startup polygon, nan detected")
+            raise RuntimeError(
+                "Failed to add the startup polygon, nan detected"
+            )
         all_polygons.append(self.startup_polygon)
         return all_polygons
 

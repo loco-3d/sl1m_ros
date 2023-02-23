@@ -37,7 +37,7 @@ sl1m:
       "coms_3D": [1.0, N_STEPS*[[0,0, 0.9]]],
       # Compute a cost to keep the feet relative positions as close as possible from the initial ones
       "posture": [1.0],
-      # Compute a cost to keep the step sizes as close as possible of a target step size [weight, step_length]
-      "step_size": [10.0, 0.2],
+      # Push the solver toward having a dx and dy between each steps [weight, [dx, dy]] having a dy !=0 impose a drift in y.
+      "step_size": [10.0, [0.2, 0.0]],
     }
     step_length: [0.1, 0.8]

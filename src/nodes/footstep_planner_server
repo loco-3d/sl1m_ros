@@ -1,46 +1,48 @@
 #! /usr/bin/env python
 
 import rospy
-import os 
-import numpy as np
-
 from sl1m_ros.sl1m_node import Sl1mNode
 from sl1m_ros.average_quaternion import average_quaternion
 from sl1m_ros.visualization_tools import foosteps_to_marker_array
 from pinocchio import Quaternion
 from pinocchio.rpy import matrixToRpy
 
-from std_msgs.msg import Header
-from visualization_msgs.msg import MarkerArray, Marker
-from geometry_msgs.msg import Point
+from visualization_msgs.msg import MarkerArray
 
-#Imports for the action server
+# Imports for the action server
 import actionlib
-from pal_footstep_planner_msgs.msg import FootStepPlanAction, FootStepPlanActionGoal, FootStepPlanResult
-from gazebo_msgs.msg import ModelStates
+from pal_footstep_planner_msgs.msg import FootStepPlanAction, FootStepPlanResult
 from pal_footstep_planner_msgs.msg import FootstepData
-from geometry_msgs.msg import Vector3
-from std_srvs.srv import TriggerRequest, TriggerResponse, Trigger
-
-
+from std_srvs.srv import TriggerResponse, Trigger
 
 
 class ActionServ(object):
-
-    def __init__(self,name):
+    def __init__(self, name):
         print("Action server sl1m init ! ")
         self._action_name = name
-        self._as = actionlib.SimpleActionServer(self._action_name, FootStepPlanAction, execute_cb=self.execute_cb, auto_start=False)
-        self.configure_srv = rospy.Service(self._action_name+"/configure", Trigger, self.configure_cb)
-        self.visualize_publisher = rospy.Publisher("/footstep_list", MarkerArray, queue_size=1)
+        self._as = actionlib.SimpleActionServer(
+            self._action_name,
+            FootStepPlanAction,
+            execute_cb=self.execute_cb,
+            auto_start=False,
+        )
+        self.configure_srv = rospy.Service(
+            self._action_name + "/configure", Trigger, self.configure_cb
+        )
+        self.visualize_publisher = rospy.Publisher(
+            "/footstep_list", MarkerArray, queue_size=1
+        )
         self._result = FootStepPlanResult()
-        #self.footStepPlan = FootstepPlannerSl1m()
-        #self.cost = {"final_com": [1.0, [0.0,0.0,0.0]]}
+        # self.footStepPlan = FootstepPlannerSl1m()
+        # self.cost = {"final_com": [1.0, [0.0,0.0,0.0]]}
         self.sl1m_node = Sl1mNode()
-        self.foot_size = [0,0, 0.02]
-        self.color_markers=[[0., 1., 0.], [1., 0. ,0.]] # green for left and red for right side
+        self.foot_size = [0, 0, 0.02]
+        self.color_markers = [
+            [0.0, 1.0, 0.0],
+            [1.0, 0.0, 0.0],
+        ]  # green for left and red for right side
         self._as.start()
-    
+
     def convert_sl1m_result(self, feet_positions, orientations):
         N_STEPS = self.sl1m_node.params.nb_steps_max
         print("Result from sl1m", feet_positions)
@@ -50,18 +52,18 @@ class ActionServ(object):
         # For PAL ros message FootStepData.robot_side 0 is LEFT, 1 is RIGHT
         # for SL1M indexes are in the order of the the "limbs" definition in the yaml file
 
-        assert(len(feet_positions[0]) == len(feet_positions[1]))
+        assert len(feet_positions[0]) == len(feet_positions[1])
 
-        footsteps =[]
-        
+        footsteps = []
+
         for i in range(1, len(feet_positions[0]) - 1):
-            for side in range(len(feet_positions)) :
+            for side in range(len(feet_positions)):
                 if feet_positions[side][i] is not None:
                     footStepDat = FootstepData()
                     footStepDat.location.x = feet_positions[side][i][0]
                     footStepDat.location.y = feet_positions[side][i][1]
                     footStepDat.location.z = feet_positions[side][i][2]
-                    #footStepDat.location.z = 0. # fix for test on robot
+                    # footStepDat.location.z = 0. # fix for test on robot
                     footStepDat.robot_side = side
                     rot = Quaternion(orientations[i])
                     footStepDat.orientation.w = rot.w
@@ -70,19 +72,25 @@ class ActionServ(object):
                     footStepDat.orientation.z = rot.z
                     footStepDat.origin = 1
                     footsteps.append(footStepDat)
-        
+
         result = FootStepPlanResult()
         result.footsteps = footsteps
         result.error_type = 0
         return result
-    
+
     def set_initial_state(self, goal):
         if len(goal.origin_pose) != 2:
-            raise Exception("Goal message should contain the position of the two initial contacts")
+            raise Exception(
+                "Goal message should contain the position of the two initial contacts"
+            )
         self.sl1m_node.initial_contacts_mutex.acquire()
         for i in range(2):
             side = int(goal.origin_pose[i].robot_side)
-            self.sl1m_node.initial_contacts[side][:]  = [goal.origin_pose[i].location.x, goal.origin_pose[i].location.y, goal.origin_pose[i].location.z]
+            self.sl1m_node.initial_contacts[side][:] = [
+                goal.origin_pose[i].location.x,
+                goal.origin_pose[i].location.y,
+                goal.origin_pose[i].location.z,
+            ]
 
             self.sl1m_node.initial_orientations[side][::] = [
                 goal.origin_pose[i].orientation.x,
@@ -91,99 +99,103 @@ class ActionServ(object):
                 goal.origin_pose[i].orientation.w,
             ]
         print("Initial contacts : ", self.sl1m_node.initial_contacts)
-        orientation_list = average_quaternion(self.sl1m_node.initial_orientations)
-        self.initial_orientation = Quaternion(orientation_list[3], orientation_list[0], orientation_list[1], orientation_list[2])
+        orientation_list = average_quaternion(
+            self.sl1m_node.initial_orientations
+        )
+        self.initial_orientation = Quaternion(
+            orientation_list[3],
+            orientation_list[0],
+            orientation_list[1],
+            orientation_list[2],
+        )
         self.sl1m_node.initial_contacts_mutex.release()
         return
 
     def set_goal(self, goal):
-        #print("Set goal called, goal message = ", goal)
+        # print("Set goal called, goal message = ", goal)
         x = goal.target_pose.position.x
         y = goal.target_pose.position.y
         z = goal.target_pose.position.z
         target_com = [x, y, z + self.sl1m_node.params.com_height]
-        costs = {"final_com": [0.1, target_com],
-                 "posture":[10],
-                 "step_size": [1 , self.sl1m_node.params.step_length],
-                 }
         self.sl1m_node.destination_contacts_mutex.acquire()
-        self.sl1m_node.destination_orientation = Quaternion(goal.target_pose.orientation.w,
-                                                            goal.target_pose.orientation.x,
-                                                            goal.target_pose.orientation.y,
-                                                            goal.target_pose.orientation.z)
+        self.sl1m_node.destination_orientation = Quaternion(
+            goal.target_pose.orientation.w,
+            goal.target_pose.orientation.x,
+            goal.target_pose.orientation.y,
+            goal.target_pose.orientation.z,
+        )
         self.sl1m_node.destination_contacts_mutex.release()
+
+        costs = {
+            "final_com": [100, target_com],
+            "posture": [1.0],
+            "step_size": [0.1, [0.0, 0.0]]
+        }
         print("target com for planning : ", target_com)
-        print("target base orientation for planning : ", self.sl1m_node.destination_orientation)
+        print(
+            "target base orientation for planning : ",
+            self.sl1m_node.destination_orientation,
+        )
 
         return costs
-    
-    def compute_num_steps(self, goal):
-        # compute the number of steps. 
-        # simple heuristic, waiting for SL1M to come up with a better solution
-        self.sl1m_node.initial_contacts_mutex.acquire()
-        origin_position = [(self.sl1m_node.initial_contacts[0][0] + self.sl1m_node.initial_contacts[1][0]) / 2.,
-                           (self.sl1m_node.initial_contacts[0][1] + self.sl1m_node.initial_contacts[1][1]) / 2.]
-        rot_origin = self.sl1m_node.initial_orientation
-        self.sl1m_node.initial_contacts_mutex.release()
-
-        self.sl1m_node.destination_contacts_mutex.acquire()
-        rot_target = self.sl1m_node.destination_orientation
-        self.sl1m_node.destination_contacts_mutex.release()
-
-        print("Origin position ",origin_position)
-
-        distance = np.linalg.norm(np.array([origin_position[0] - goal.target_pose.position.x,
-                                            origin_position[1] - goal.target_pose.position.y]))
-        nb_steps_lin = abs(distance / self.sl1m_node.params.step_length[0])
-
-
-        yaw = abs(matrixToRpy((rot_target * rot_origin.inverse()).matrix()))[2]
-        nb_steps_rot = (yaw / self.sl1m_node.params.step_length[1])
-
-        nb_steps = int(min(self.sl1m_node.params.nb_steps_max, max(nb_steps_lin, nb_steps_rot) * 2))
-        print("Number of steps : ", nb_steps)
-        return nb_steps
-    
 
     def visualize_footsteps(self, feet_positions, orientations):
-        if rospy.has_param("/biped_walking_dcm_controller/biped_parameters/foot_description/foot_length"):
-            self.foot_size[0] = rospy.get_param("/biped_walking_dcm_controller/biped_parameters/foot_description/foot_length")
-        if rospy.has_param("/biped_walking_dcm_controller/biped_parameters/foot_description/foot_with"):
-            self.foot_size[1] = rospy.get_param("/biped_walking_dcm_controller/biped_parameters/foot_description/foot_with")
-        marker_array = foosteps_to_marker_array(feet_positions, orientations, rospy.Time.now(), self.foot_size, self.color_markers)
-        #print("Marker array for visualization size : ", len(marker_array.markers))
-        #print("array : ", marker_array)
+        if rospy.has_param(
+            "/biped_walking_dcm_controller/biped_parameters/foot_description/foot_length"
+        ):
+            self.foot_size[0] = rospy.get_param(
+                "/biped_walking_dcm_controller/biped_parameters/foot_description/foot_length"
+            )
+        if rospy.has_param(
+            "/biped_walking_dcm_controller/biped_parameters/foot_description/foot_with"
+        ):
+            self.foot_size[1] = rospy.get_param(
+                "/biped_walking_dcm_controller/biped_parameters/foot_description/foot_with"
+            )
+        marker_array = foosteps_to_marker_array(
+            feet_positions,
+            orientations,
+            rospy.Time.now(),
+            self.foot_size,
+            self.color_markers,
+        )
+        # print("Marker array for visualization size : ", len(marker_array.markers))
+        # print("array : ", marker_array)
         self.visualize_publisher.publish(marker_array)
-        
-    #Callback functions
-    def execute_cb(self,goal):
-        rospy.loginfo('Executing callback of %s' % self._action_name)
-        #cost = self.setCost(goal)
-        #print("Cost : {}".format(self.getCost()))
+
+    # Callback functions
+    def execute_cb(self, goal):
+        rospy.loginfo("Executing callback of %s" % self._action_name)
+
         result_msg = FootStepPlanResult()
         if not self.sl1m_node.is_environment_valid():
-            rospy.loginfo('Nothing to compute, surface list is empty')
-        #elif not self.sl1m_node.is_initial_state_valid():
+            rospy.loginfo("Nothing to compute, surface list is empty")
+        # elif not self.sl1m_node.is_initial_state_valid():
         #    rospy.loginfo('Nothing to compute, initial state is not configured')
         else:
             self.set_initial_state(goal)
             costs = self.set_goal(goal)
-            nb_steps = self.compute_num_steps(goal)
+            nb_steps = self.sl1m_node.compute_nb_steps(goal)
             result, orientations = self.sl1m_node.run_once(nb_steps, costs)
-            result_msg = self.convert_sl1m_result(result.all_feet_pos, orientations)
+            result_msg = self.convert_sl1m_result(
+                result.all_feet_pos, orientations
+            )
             print("result = ", result)
             self.visualize_footsteps(result.all_feet_pos, orientations)
-        rospy.loginfo('Callback return succeed for Action %s' % self._action_name)
+        rospy.loginfo(
+            "Callback return succeed for Action %s" % self._action_name
+        )
         self._as.set_succeeded(result_msg)
 
     def configure_cb(self, req):
-        rospy.loginfo('Executing Configure of %s' % self._action_name)
+        rospy.loginfo("Executing Configure of %s" % self._action_name)
         res = TriggerResponse()
         res.success = True
         res.message = ""
         return res
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     rospy.init_node("footstep_planner")
     server = ActionServ("footstep_planner")
     rospy.spin()
