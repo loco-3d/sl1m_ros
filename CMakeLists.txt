@@ -31,6 +31,7 @@ install(PROGRAMS
   src/nodes/sl1m_ros
   src/nodes/hpp_rbprm_server
   src/nodes/footstep_planner_server
+  src/nodes/surface_processing
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

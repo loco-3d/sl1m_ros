@@ -1,0 +1,13 @@
+#! /usr/bin/env python
+
+import rospy
+from sl1m_ros.surface_processing_node import SurfaceProcessingNode
+
+def main():
+    rospy.init_node('surface_processing')
+
+    node = SurfaceProcessingNode()
+    node.run()
+
+if __name__ == '__main__':
+    main()
