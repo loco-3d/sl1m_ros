@@ -556,7 +556,7 @@ class Sl1mNode:
     def add_start_polygon(
         self,
         min_x_margin=0.2,
-        max_x_margin=0.7,
+        max_x_margin=0.6,
         min_y_margin=0.2,
         max_y_margin=0.2,
     ):

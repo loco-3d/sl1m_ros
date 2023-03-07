@@ -4,7 +4,6 @@ import rospkg
 import numpy as np
 from pathlib import Path
 from sl1m.solver import Solvers
-from sl1m_ros.average_quaternion import average_quaternion
 
 
 class Sl1mParameters:
