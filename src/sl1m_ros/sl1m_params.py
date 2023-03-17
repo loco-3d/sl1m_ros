@@ -25,6 +25,8 @@ class Sl1mParameters:
         self.final_base_orientation = np.eye(3)
         self.nb_steps_max = 100
         self.com_height = 0.87
+        self.initial_surface_width = 0.8
+        self.initial_surface_length = 1.0
 
         # private params
         self._numerical_solver = "GUROBI"
@@ -57,7 +59,9 @@ class Sl1mParameters:
         self.final_base_orientation = self._get_param("sl1m/final_base_orientation")
         self.nb_steps_max = self._get_param("sl1m/nb_steps_max")
         self.com_height = self._get_param("sl1m/com_height")
-        
+        self.initial_surface_width = self._get_param("sl1m/initial_surface_width")
+        self.initial_surface_length = self._get_param("sl1m/initial_surface_length")
+
         # Fetch the data from the paths
         assert type(self.paths) is list
         rp = rospkg.RosPack()
@@ -86,6 +90,8 @@ class Sl1mParameters:
             assert type(gait_el) is list
         assert type(self.nb_steps_max) is int
         assert type(self.com_height) is float
+        assert type(self.initial_surface_width) is float
+        assert type(self.initial_surface_length) is float
 
         for i in range(len(self.gait)):
             self.gait[i] = np.array(self.gait[i])
@@ -119,4 +125,7 @@ class Sl1mParameters:
         ret += "    - rate = " + str(self.rate) + "\n"
         ret += "    - optimize_com = " + str(self.optimize_com) + "\n"
         ret += "    - com_height = " + str(self.com_height) + "\n"
+        ret += "    - initial_surface_width = " + str(self.initial_surface_width) + "\n"
+        ret += "    - initial_surface_length = " + str(self.initial_surface_length) + "\n"
+
         return ret
