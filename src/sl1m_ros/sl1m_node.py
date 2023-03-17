@@ -327,8 +327,16 @@ class Sl1mNode:
 
         t_acquiring_data = clock()
 
-        # Get all polygons for all phases.
-        all_polygons = self.add_start_polygon()
+        rospy.loginfo("Number of polygons before adding the initial one  {}".format( len(all_polygons)))
+        
+        for polygon in all_polygons:
+            rospy.loginfo("Number of points in the polygon :   {}".format( len(polygon)))
+            
+        # Get all polygons for all phases
+        all_polygons = self.add_start_polygon(self.params.initial_surface_length/2.0,
+                                                self.params.initial_surface_length/2.0,
+                                                self.params.initial_surface_width/2.0,
+                                                self.params.initial_surface_width/2.0)
 
         if nb_step == 0:
             nb_step = self.compute_nb_steps(destination_contacts)
