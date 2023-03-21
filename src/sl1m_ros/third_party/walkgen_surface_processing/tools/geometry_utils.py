@@ -216,8 +216,7 @@ def process_surfaces(surfacesIn, polySize=10, method=0, min_area=0., margin_inne
         surfaces.pop(id_)
 
     # Add last surface remaining
-    if len(new_surfaces) > 0:
-        new_surfaces.append(surfaces[0].get_vertices_inner())
+    new_surfaces.append(surfaces[0].get_vertices_inner())
     return new_surfaces
 
 
