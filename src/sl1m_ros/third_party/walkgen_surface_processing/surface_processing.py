@@ -87,7 +87,7 @@ class SurfaceProcessing:
         self._offsets_clearmap = 0.02 # (initial_height + offsets_clearmap) height under which the surfaces are removed.
         self._clearmap = False # Boolean to remove the some of the ground surfaces.
 
-    def run(self, position, markerArray):
+    def run(self, position, markerArray, addInitialFloor = False):
         """ Process the surfaces list from markerArray data type.
         Use a moving surface below the robot to ensure a surface is always under the robot. If unnecessary, it will be removed
         with the processing.
@@ -110,13 +110,14 @@ class SurfaceProcessing:
         surface_reduced = reduce_surfaces(surface_list, self._n_points)
 
         # Add floor around robot position.
-        vertices = np.array([[position[0] - self._dx, position[1] + self._dy, self._initial_height],
-                    [position[0] - self._dx, position[1] -
-                        self._dy, self._initial_height],
-                    [position[0] + self._dx, position[1] -
-                        self._dy, self._initial_height],
-                    [position[0] + self._dx, position[1] + self._dy, self._initial_height]])
-        surface_reduced.append(vertices)
+        if addInitialFloor:
+            vertices = np.array([[position[0] - self._dx, position[1] + self._dy, self._initial_height],
+                        [position[0] - self._dx, position[1] -
+                            self._dy, self._initial_height],
+                        [position[0] + self._dx, position[1] -
+                            self._dy, self._initial_height],
+                        [position[0] + self._dx, position[1] + self._dy, self._initial_height]])
+            surface_reduced.append(vertices)
 
         # Apply process to filter and decompose the surfaces to avoid overlap and apply a security margin.
         surfaces_processed = process_surfaces(

@@ -51,7 +51,7 @@ class SurfaceProcessingNode:
             return
 
         t0 = clock()
-        position = np.array([0.2,0.5,0.])
+        position = np.array([0.,0.,0.])
         all_surfaces = self.surface_processing.run(position, msg)
         t1 = clock()
         # print("Time took to process the surfaces [ms] : ", 1000 * (t1 - t0))
