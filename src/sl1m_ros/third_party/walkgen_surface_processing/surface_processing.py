@@ -82,7 +82,7 @@ class SurfaceProcessing:
         self._poly_size = self._params.poly_size
         self._min_area = self._params.min_area
         self._margin = self._params.margin
-        self._offsets = -0.03
+        self._offsets = 0.
 
         self._offsets_clearmap = 0.02 # (initial_height + offsets_clearmap) height under which the surfaces are removed.
         self._clearmap = False # Boolean to remove the some of the ground surfaces.
