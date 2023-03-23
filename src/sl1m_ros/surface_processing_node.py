@@ -22,11 +22,11 @@ class SurfaceProcessingNode:
 
         # Parameters of the environment
         self.params = SurfaceProcessingParams()
-        self.params.n_points = 10  # Maximum Number of points for for each convex surface.
-        self.params.margin = 0.14  # Margin in [m] inside the convex surfaces.
-        self.params.method_id = 3  # Method for convex decomposition.
-        self.params.poly_size = 50  # Maximum size of the polygon for the convex decomposition.
-        self.params.min_area = 0.003   # Area under which the remaining surfaces is deleted.
+        self.params.n_points = rospy.get_param("surface_processing/n_points", 10)  # Maximum Number of points for for each convex surface.
+        self.params.margin = rospy.get_param("surface_processing/margin",0.14)  # Margin in [m] inside the convex surfaces.
+        self.params.method_id = rospy.get_param("surface_processing/method_id",3)  # Method for convex decomposition.
+        self.params.poly_size = rospy.get_param("surface_processing/poly_size",50)  # Maximum size of the polygon for the convex decomposition.
+        self.params.min_area = rospy.get_param("surface_processing/min_area",0.003)   # Area under which the remaining surfaces is deleted.
         # Initial height
         initial_height = 0.0
         # Create the surface processing objects.
