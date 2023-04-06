@@ -30,7 +30,6 @@ from sl1m.generic_solver import solve_L1_combinatorial, solve_MIP
 from sl1m.problem_definition import Problem
 from sl1m_ros.sl1m_params import Sl1mParameters
 from sl1m_ros.average_quaternion import average_quaternion
-from pal_walking_msgs.msg import PolygonArray
 
 
 class Sl1mNode:
@@ -56,7 +55,7 @@ class Sl1mNode:
 
         self.polygon_client = rospy.Subscriber(
             "/sl1m_ros/polygons",
-            PolygonArray,
+            MarkerArray,
             self.polygon_callback,
             queue_size=5,
         )
@@ -151,13 +150,13 @@ class Sl1mNode:
     def polygon_callback(self, msg):
         all_polygons = []
         # Getting the list of surfaces
-        for polygon in msg.polygonArray:
+        for surface in msg.markers:
             point_list = []
-            for point in polygon.polygon.points:
+            for point in surface.points:
                 point_list.append([point.x, point.y, point.z])
             all_polygons.append(np.array(point_list).T)
+            self.all_polygons_frame_id = surface.header.frame_id
 
-        self.all_polygons_frame_id = msg.header.frame_id
         self.all_polygons_mutex.acquire()
         self.all_polygons = deepcopy(all_polygons)
         self.all_polygons_mutex.release()
@@ -328,16 +327,16 @@ class Sl1mNode:
 
         t_acquiring_data = clock()
 
-        rospy.loginfo("Number of polygons stored {}".format( len(all_polygons)))
+        rospy.loginfo("Number of polygons before adding the initial one  {}".format( len(all_polygons)))
         
-        #for polygon in all_polygons:
-        #    rospy.loginfo("Number of points in the polygon :   {}".format( len(polygon)))
+        for polygon in all_polygons:
+            rospy.loginfo("Number of points in the polygon :   {}".format( len(polygon)))
             
         # Get all polygons for all phases
-        #all_polygons = self.add_start_polygon(self.params.initial_surface_length/2.0,
-        #                                        self.params.initial_surface_length/2.0,
-        #                                        self.params.initial_surface_width/2.0,
-        #                                        self.params.initial_surface_width/2.0)
+        all_polygons = self.add_start_polygon(self.params.initial_surface_length/2.0,
+                                                self.params.initial_surface_length/2.0,
+                                                self.params.initial_surface_width/2.0,
+                                                self.params.initial_surface_width/2.0)
 
         if nb_step == 0:
             nb_step = self.compute_nb_steps(destination_contacts)
