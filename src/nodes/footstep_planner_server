@@ -15,8 +15,8 @@ from visualization_msgs.msg import MarkerArray
 import actionlib
 from pal_footstep_planner_msgs.msg import FootStepPlanAction, FootStepPlanResult
 from pal_footstep_planner_msgs.msg import FootstepData
+from pal_locomotion_msgs.msg import ExecFootStepsActionFeedback
 from std_srvs.srv import TriggerResponse, Trigger
-
 
 class ActionServ(object):
     def __init__(self, name):
@@ -34,6 +34,9 @@ class ActionServ(object):
         self.visualize_publisher = rospy.Publisher(
             "/footstep_list", MarkerArray, queue_size=1
         )
+
+        rospy.Subscriber("/biped_walking_dcm_controller/footsteps_execution/feedback",ExecFootStepsActionFeedback , self.feedback_cb)
+
         # self.footStepPlan = FootstepPlannerSl1m()
         # self.cost = {"final_com": [1.0, [0.0,0.0,0.0]]}
         self.sl1m_node = Sl1mNode()
@@ -44,9 +47,16 @@ class ActionServ(object):
         ]  # green for left and red for right side
         self._as.start()
         self.init_feet_lever_arm = []
+        # TODO : protect with mutex, only allow one plan() or replan() method running at the same time. 
+        self.current_goal = None
+        self.current_cost = None
+        self.current_nb_steps = None
+        self.current_executed_steps = 2
+        self.replan = False
 
 
-    def convert_sl1m_result(self, feet_positions, orientations):
+
+    def convert_to_planner_result_msg(self, feet_positions, orientations):
         print("Result from sl1m", feet_positions)
         print("feet position size : ", len(feet_positions[0]))
         print("base orientation size : ", len(orientations))
@@ -171,6 +181,19 @@ class ActionServ(object):
         # print("array : ", marker_array)
         self.visualize_publisher.publish(marker_array)
 
+    def plan(self, goal):
+        self.set_initial_state(goal)
+        nb_steps = self.sl1m_node.compute_nb_steps(goal)
+        costs = self.set_goal(goal)
+        return self.sl1m_node.run_once(nb_steps, costs)
+    
+    def replan(self, last_command):
+        if self.current_cost is None or self.current_nb_steps is None:
+            rospy.logwarn("SL1M: cannot replan, cost or number of steps are not defined")
+        else:
+            rospy.logerr("SL1M replan called, TODO !!")
+
+
     # Callback functions
     def execute_cb(self, goal):
         rospy.loginfo("Executing callback of %s" % self._action_name)
@@ -181,11 +204,8 @@ class ActionServ(object):
         # elif not self.sl1m_node.is_initial_state_valid():
         #    rospy.loginfo('Nothing to compute, initial state is not configured')
         else:
-            self.set_initial_state(goal)
-            nb_steps = self.sl1m_node.compute_nb_steps(goal)
-            costs = self.set_goal(goal)
-            result, orientations = self.sl1m_node.run_once(nb_steps, costs)
-            result_msg = self.convert_sl1m_result(
+            result, orientations = self.plan(goal)
+            result_msg = self.convert_to_planner_result_msg(
                 result.all_feet_pos, orientations
             )
             print("result = ", result)
@@ -193,6 +213,7 @@ class ActionServ(object):
         rospy.loginfo(
             "Callback return succeed for Action %s" % self._action_name
         )
+        print("@@@@@ replan member: ", goal.continuous_replan)
         self._as.set_succeeded(result_msg)
 
     def configure_cb(self, req):
@@ -201,6 +222,12 @@ class ActionServ(object):
         res.success = True
         res.message = ""
         return res
+
+    def feedback_cb(self, feedback):
+        rospy.loginfo("SL1m: feedback received from execution, executed command size : ", len(feedback.executed_commands))
+        if len(feedback.executed_commands) > self.current_executed_steps:
+            self.current_executed_steps = len(feedback.executed_commands)
+            self.replan(feedback.executed_commands[-1])
 
 
 if __name__ == "__main__":
