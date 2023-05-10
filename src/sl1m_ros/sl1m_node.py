@@ -594,7 +594,7 @@ class Sl1mNode:
             for pose in initial_contacts:
                 average_pose += pose
             average_pose /= len(initial_contacts)
-            print(average_pose)
+            #print(average_pose)
             polygon_se3 = SE3(initial_orientation.matrix(), average_pose)
             x_min = -min_x_margin
             x_max = +max_x_margin
@@ -619,6 +619,6 @@ class Sl1mNode:
 
     def color(self, i, i_max):
         hue = float(i) / float(i_max)
-        print(i, i_max, hue)
+        #print(i, i_max, hue)
         (r, g, b) = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
         return int(255 * r), int(255 * g), int(255 * b)

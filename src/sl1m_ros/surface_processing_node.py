@@ -99,7 +99,7 @@ class SurfaceProcessingNode:
 
     def color(self, i, i_max):
         hue = float(i) / float(i_max)
-        print(i, i_max, hue)
+        #print(i, i_max, hue)
         (r, g, b) = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
         return int(255 * r), int(255 * g), int(255 * b)
 
