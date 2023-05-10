@@ -51,8 +51,8 @@ class ActionServ(object):
         self.current_goal = None
         self.current_cost = None
         self.current_nb_steps = None
-        self.current_executed_steps = 2
-        self.replan = False
+        self.current_executed_steps = None
+        self.replanning = True
 
 
 
@@ -185,6 +185,8 @@ class ActionServ(object):
         self.set_initial_state(goal)
         nb_steps = self.sl1m_node.compute_nb_steps(goal)
         costs = self.set_goal(goal)
+        self.current_cost = costs
+        self.current_nb_steps = nb_steps
         return self.sl1m_node.run_once(nb_steps, costs)
     
     def replan(self, last_command):
@@ -214,6 +216,8 @@ class ActionServ(object):
             "Callback return succeed for Action %s" % self._action_name
         )
         print("@@@@@ replan member: ", goal.continuous_replan)
+        if self.replanning:
+            self.current_executed_steps = None
         self._as.set_succeeded(result_msg)
 
     def configure_cb(self, req):
@@ -224,10 +228,12 @@ class ActionServ(object):
         return res
 
     def feedback_cb(self, feedback):
-        rospy.loginfo("SL1m: feedback received from execution, executed command size : ", len(feedback.executed_commands))
-        if len(feedback.executed_commands) > self.current_executed_steps:
-            self.current_executed_steps = len(feedback.executed_commands)
-            self.replan(feedback.executed_commands[-1])
+        #rospy.loginfo("SL1m: feedback received from execution, executed command size : %i" % len(feedback.feedback.executed_commands))
+        if self.current_executed_steps is None:
+            self.current_executed_steps = len(feedback.feedback.executed_commands)
+        elif len(feedback.feedback.executed_commands) > self.current_executed_steps:
+            self.current_executed_steps = len(feedback.feedback.executed_commands)
+            self.replan(feedback.feedback.executed_commands[-1])
 
 
 if __name__ == "__main__":
