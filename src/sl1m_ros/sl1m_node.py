@@ -312,7 +312,7 @@ class Sl1mNode:
         ) + 2
         return nb_step
 
-    def run_once(self, nb_step=0, costs={}):
+    def run_once(self, nb_step=0, costs={}, add_initial_surface = True):
         # Get the time at the beginning of the loop
         self.params.get_ros_param()
         t_start = clock()
@@ -330,13 +330,14 @@ class Sl1mNode:
         rospy.loginfo("Number of polygons before adding the initial one  {}".format( len(all_polygons)))
         
         for polygon in all_polygons:
-            rospy.loginfo("Number of points in the polygon :   {}".format( len(polygon)))
+            rospy.logdebug("Number of points in the polygon :   {}".format( len(polygon)))
             
         # Get all polygons for all phases
-        all_polygons = self.add_start_polygon(self.params.initial_surface_length/2.0,
-                                                self.params.initial_surface_length/2.0,
-                                                self.params.initial_surface_width/2.0,
-                                                self.params.initial_surface_width/2.0)
+        if add_initial_surface:
+            all_polygons = self.add_start_polygon(self.params.initial_surface_length/2.0,
+                                                    self.params.initial_surface_length/2.0,
+                                                    self.params.initial_surface_width/2.0,
+                                                    self.params.initial_surface_width/2.0)
 
         if nb_step == 0:
             nb_step = self.compute_nb_steps(destination_contacts)

@@ -15,7 +15,7 @@ from visualization_msgs.msg import MarkerArray
 import actionlib
 from pal_footstep_planner_msgs.msg import FootStepPlanAction, FootStepPlanResult
 from pal_footstep_planner_msgs.msg import FootstepData
-from pal_locomotion_msgs.msg import ExecFootStepsActionFeedback
+from pal_locomotion_msgs.msg import ExecFootStepsActionFeedback, ExecFootStepsActionGoal, VelocityCommandMsg
 from std_srvs.srv import TriggerResponse, Trigger
 
 class ActionServ(object):
@@ -71,11 +71,14 @@ class ActionServ(object):
         self.current_nb_steps = None
         self.current_executed_steps = None
         self.replanning = True
+        self.current_msg_seq = 1000
 
 
 
     def convert_to_planner_result_msg(self, feet_positions, orientations):
-        print("Result from sl1m", feet_positions)
+        print("# Result from sl1m:")
+        for side in range(len(feet_positions)):
+            print("For side  ",side, "contact positions : ",feet_positions[side])
         print("feet position size : ", len(feet_positions[0]))
         print("base orientation size : ", len(orientations))
 
@@ -107,6 +110,43 @@ class ActionServ(object):
         result.footsteps = footsteps
         result.error_type = 0
         return result
+    
+    def convert_to_execution_msg(self,feet_positions, orientations):
+        print("# Result from sl1m:")
+        for side in range(len(feet_positions)):
+            print("For side  ",side, "contact positions : ",feet_positions[side])
+        print("feet position size : ", len(feet_positions[0]))
+        print("base orientation size : ", len(orientations))
+        result = ExecFootStepsActionGoal()
+        # Fill header and metadata
+        result.header.seq = self.current_msg_seq
+        self.current_msg_seq += 1
+        result.header.stamp = rospy.get_rostime()
+        result.goal_id.stamp = result.header.stamp
+        result.goal.feedback_frequency = 10.0
+        # Start the commad list
+        footsteps = []
+        for i in range(1, len(feet_positions[0])):
+            for side in range(len(feet_positions)):
+                if feet_positions[side][i] is not None:
+                    footStepDat = VelocityCommandMsg()
+                    footStepDat.support_type.support_type = 22
+                    footStepDat.side.side = 10+side
+                    footStepDat.has_side = True
+                    footStepDat.use_pose = True
+                    footStepDat.stance_pose.position.x = feet_positions[side][i][0]
+                    footStepDat.stance_pose.position.y = feet_positions[side][i][1]
+                    footStepDat.stance_pose.position.z = feet_positions[side][i][2]
+                    # footStepDat.location.z = 0. # fix for test on robot
+                    rot = Quaternion(orientations[i])
+                    footStepDat.stance_pose.orientation.w = rot.w
+                    footStepDat.stance_pose.orientation.x = rot.x
+                    footStepDat.stance_pose.orientation.y = rot.y
+                    footStepDat.stance_pose.orientation.z = rot.z
+                    footsteps.append(footStepDat)
+
+        result.goal.commands = footsteps
+        return result
 
     def set_initial_state(self, goal):
         if len(goal.origin_pose) != 2:
@@ -128,6 +168,37 @@ class ActionServ(object):
                 goal.origin_pose[i].orientation.z,
                 goal.origin_pose[i].orientation.w,
             ]
+        print("Initial contacts : ", self.sl1m_node.initial_contacts)
+        orientation_list = average_quaternion(
+            self.sl1m_node.initial_orientations
+        )
+        self.sl1m_node.initial_orientation = Quaternion(
+            orientation_list[3],
+            orientation_list[0],
+            orientation_list[1],
+            orientation_list[2],
+        )
+        self.sl1m_node.initial_contacts_mutex.release()
+        return
+    
+
+    def set_initial_state_from_feedback(self, executed_commands):
+        self.sl1m_node.initial_contacts_mutex.acquire()
+        last_command = executed_commands[-1]
+        current_side = last_command.side.side - 10
+        rospy.loginfo("Set initial state from feedback, current support side is : %d " % current_side)
+        self.sl1m_node.initial_contacts[current_side][:] = [
+            last_command.stance_pose.position.x,
+            last_command.stance_pose.position.y,
+            last_command.stance_pose.position.z,
+        ]
+        self.sl1m_node.initial_orientations[current_side][::] = [
+            last_command.stance_pose.orientation.x,
+            last_command.stance_pose.orientation.y,
+            last_command.stance_pose.orientation.z,
+            last_command.stance_pose.orientation.w,
+        ]
+
         print("Initial contacts : ", self.sl1m_node.initial_contacts)
         orientation_list = average_quaternion(
             self.sl1m_node.initial_orientations
@@ -193,14 +264,14 @@ class ActionServ(object):
         costs = self.set_goal(goal)
         self.current_cost = costs
         self.current_nb_steps = nb_steps
-        return self.sl1m_node.run_once(nb_steps, costs)
+        return self.sl1m_node.run_once(nb_steps, costs, add_initial_surface=False)
     
-    def replan(self, last_command):
-        if self.current_cost is None or self.current_nb_steps is None:
-            rospy.logwarn("SL1M: cannot replan, cost or number of steps are not defined")
-        else:
-            rospy.logerr("SL1M replan called, TODO !!")
-
+    def replan(self, executed_commands):
+        rospy.loginfo("SL1M replan called!!")
+        self.set_initial_state_from_feedback(executed_commands)
+        self.current_nb_steps -= 1
+        return self.sl1m_node.run_once(self.current_nb_steps, self.current_cost, add_initial_surface=False)
+            
 
     # Callback functions
     def execute_cb(self, goal):
@@ -235,12 +306,33 @@ class ActionServ(object):
 
     def feedback_cb(self, feedback):
         #rospy.loginfo("SL1m: feedback received from execution, executed command size : %i" % len(feedback.feedback.executed_commands))
+        if self.current_cost is None or self.current_nb_steps is None:
+            rospy.loginfo("Feedback received but replanning was not configured yet")
+            return
+        if feedback.status.status != 1:
+            rospy.loginfo("Feedback received with status != ACTIVE : %d" % feedback.status.status)
+            return
+        if len(feedback.feedback.executed_commands) <= 0:
+            rospy.loginfo("Feedback received: no executed commands yet")
+            return
+        
         if self.current_executed_steps is None:
             self.current_executed_steps = len(feedback.feedback.executed_commands)
-        elif len(feedback.feedback.executed_commands) > self.current_executed_steps:
-            self.current_executed_steps = len(feedback.feedback.executed_commands)
-            self.replan(feedback.feedback.executed_commands[-1])
 
+        if feedback.feedback.executed_commands[-1].support_type.support_type != 22:
+            rospy.loginfo("Feedback received do not end with a SS phase : %d" % feedback.feedback.executed_commands[-1].support_type.support_type)
+            return
+        if self.current_nb_steps <= 1:
+            rospy.loginfo("Feedback received but initial number of planned step have been executed already")
+            return
+        
+        if len(feedback.feedback.executed_commands) > self.current_executed_steps:
+            self.current_executed_steps = len(feedback.feedback.executed_commands)
+            result, orientations = self.replan(feedback.feedback.executed_commands)
+            print("result of replanning = ", result)
+            self.visualize_footsteps(result.all_feet_pos, orientations)
+            result_msg = self.convert_to_execution_msg(result.all_feet_pos, orientations)
+            self.fsp_execution_publisher.publish(result_msg)
 
 if __name__ == "__main__":
     rospy.init_node("footstep_planner")
