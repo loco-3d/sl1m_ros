@@ -32,19 +32,37 @@ class ActionServ(object):
             self._action_name + "/configure", Trigger, self.configure_cb
         )
         self.visualize_publisher = rospy.Publisher(
-            "/footstep_list", MarkerArray, queue_size=1
+            "/footstep_list", MarkerArray, queue_size=10
         )
 
+        self.fsp_execution_publisher = rospy.Publisher(
+            "/biped_walking_dcm_controller/footsteps_execution/goal",
+            ExecFootStepsActionGoal, queue_size=1)
+
         rospy.Subscriber("/biped_walking_dcm_controller/footsteps_execution/feedback",ExecFootStepsActionFeedback , self.feedback_cb)
+
+
 
         # self.footStepPlan = FootstepPlannerSl1m()
         # self.cost = {"final_com": [1.0, [0.0,0.0,0.0]]}
         self.sl1m_node = Sl1mNode()
-        self.foot_size = [0, 0, 0.02]
         self.color_markers = [
             [0.0, 1.0, 0.0],
             [1.0, 0.0, 0.0],
         ]  # green for left and red for right side
+        self.foot_size = [0.2,0.1, 0.02]
+        if rospy.has_param(
+            "/biped_walking_dcm_controller/biped_parameters/foot_description/foot_length"
+        ):
+            self.foot_size[0] = rospy.get_param(
+                "/biped_walking_dcm_controller/biped_parameters/foot_description/foot_length"
+            )
+        if rospy.has_param(
+            "/biped_walking_dcm_controller/biped_parameters/foot_description/foot_with"
+        ):
+            self.foot_size[1] = rospy.get_param(
+                "/biped_walking_dcm_controller/biped_parameters/foot_description/foot_with"
+            )
         self._as.start()
         self.init_feet_lever_arm = []
         # TODO : protect with mutex, only allow one plan() or replan() method running at the same time. 
@@ -157,18 +175,6 @@ class ActionServ(object):
         return costs
 
     def visualize_footsteps(self, feet_positions, orientations):
-        if rospy.has_param(
-            "/biped_walking_dcm_controller/biped_parameters/foot_description/foot_length"
-        ):
-            self.foot_size[0] = rospy.get_param(
-                "/biped_walking_dcm_controller/biped_parameters/foot_description/foot_length"
-            )
-        if rospy.has_param(
-            "/biped_walking_dcm_controller/biped_parameters/foot_description/foot_with"
-        ):
-            self.foot_size[1] = rospy.get_param(
-                "/biped_walking_dcm_controller/biped_parameters/foot_description/foot_with"
-            )
         self.visualize_publisher.publish(MarkerArray())
         marker_array = foosteps_to_marker_array(
             feet_positions,
