@@ -2,6 +2,7 @@
 
 import numpy as np
 from copy import deepcopy
+import threading
 import rospy
 from sl1m_ros.sl1m_node import Sl1mNode
 from sl1m_ros.average_quaternion import average_quaternion
@@ -66,6 +67,7 @@ class ActionServ(object):
         self._as.start()
         self.init_feet_lever_arm = []
         # TODO : protect with mutex, only allow one plan() or replan() method running at the same time. 
+        self.replan_mutex = threading.Lock()
         self.current_goal = None
         self.current_cost = None
         self.current_nb_steps = None
@@ -327,12 +329,14 @@ class ActionServ(object):
             return
         
         if len(feedback.feedback.executed_commands) > self.current_executed_steps:
-            self.current_executed_steps = len(feedback.feedback.executed_commands)
-            result, orientations = self.replan(feedback.feedback.executed_commands)
-            print("result of replanning = ", result)
-            self.visualize_footsteps(result.all_feet_pos, orientations)
-            result_msg = self.convert_to_execution_msg(result.all_feet_pos, orientations)
-            self.fsp_execution_publisher.publish(result_msg)
+            if self.replan_mutex.acquire(False):
+                self.current_executed_steps = len(feedback.feedback.executed_commands)
+                result, orientations = self.replan(feedback.feedback.executed_commands)
+                self.replan_mutex.release()
+                print("result of replanning = ", result)
+                self.visualize_footsteps(result.all_feet_pos, orientations)
+                result_msg = self.convert_to_execution_msg(result.all_feet_pos, orientations)
+                self.fsp_execution_publisher.publish(result_msg)
 
 if __name__ == "__main__":
     rospy.init_node("footstep_planner")
