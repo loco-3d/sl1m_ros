@@ -72,8 +72,11 @@ class ActionServ(object):
         self.current_cost = None
         self.current_nb_steps = None
         self.current_executed_steps = None
+        self.previous_executed_steps = None
         self.replanning = True
         self.current_msg_seq = 1000
+        self.previous_solution = None
+        self.first_replan = True
 
 
 
@@ -188,7 +191,7 @@ class ActionServ(object):
         self.sl1m_node.initial_contacts_mutex.acquire()
         last_command = executed_commands[-1]
         current_side = last_command.side.side - 10
-        rospy.loginfo("Set initial state from feedback, current support side is : %d " % current_side)
+        rospy.loginfo("Set initial state from feedback, current side is : %d " % current_side)
         self.sl1m_node.initial_contacts[current_side][:] = [
             last_command.stance_pose.position.x,
             last_command.stance_pose.position.y,
@@ -199,6 +202,28 @@ class ActionServ(object):
             last_command.stance_pose.orientation.y,
             last_command.stance_pose.orientation.z,
             last_command.stance_pose.orientation.w,
+        ]
+
+        # now set the other side with the next contact (the one currently being executed)
+        if current_side == 1:
+            next_side = 0
+        else:
+            next_side = 1
+        # compute the index of this step in the previous solution :
+        id_previous_sol = self.current_executed_steps - self.previous_executed_steps + self.first_replan
+        rospy.loginfo("Id in previous solution : %d " % id_previous_sol)
+        next_position = self.previous_solution[0].all_feet_pos[next_side][id_previous_sol]
+        next_rot = Quaternion(self.previous_solution[1][id_previous_sol])
+        self.sl1m_node.initial_contacts[next_side][:] = [
+            next_position[0],
+            next_position[1],
+            next_position[2],
+        ]
+        self.sl1m_node.initial_orientations[next_side][::] = [
+            next_rot.x,
+            next_rot.y, 
+            next_rot.z,
+            next_rot.w
         ]
 
         print("Initial contacts : ", self.sl1m_node.initial_contacts)
@@ -266,13 +291,19 @@ class ActionServ(object):
         costs = self.set_goal(goal)
         self.current_cost = costs
         self.current_nb_steps = nb_steps
-        return self.sl1m_node.run_once(nb_steps, costs, add_initial_surface=False)
+        self.previous_solution = self.sl1m_node.run_once(nb_steps, costs, add_initial_surface=False)
+        return self.previous_solution
     
     def replan(self, executed_commands):
         rospy.loginfo("SL1M replan called!!")
         self.set_initial_state_from_feedback(executed_commands)
         self.current_nb_steps -= 1
-        return self.sl1m_node.run_once(self.current_nb_steps, self.current_cost, add_initial_surface=False)
+        self.previous_executed_steps = self.current_executed_steps
+        self.previous_solution = self.sl1m_node.run_once(self.current_nb_steps, self.current_cost, add_initial_surface=False)
+        if self.first_replan:
+            self.first_replan = False
+        return self.previous_solution
+
             
 
     # Callback functions
@@ -297,6 +328,7 @@ class ActionServ(object):
         print("@@@@@ replan member: ", goal.continuous_replan)
         if self.replanning:
             self.current_executed_steps = None
+            self.first_replan = True
         self._as.set_succeeded(result_msg)
 
     def configure_cb(self, req):
@@ -320,6 +352,7 @@ class ActionServ(object):
         
         if self.current_executed_steps is None:
             self.current_executed_steps = len(feedback.feedback.executed_commands)
+            self.previous_executed_steps = self.current_executed_steps
 
         if feedback.feedback.executed_commands[-1].support_type.support_type != 22:
             rospy.loginfo("Feedback received do not end with a SS phase : %d" % feedback.feedback.executed_commands[-1].support_type.support_type)
