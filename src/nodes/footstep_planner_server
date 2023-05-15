@@ -5,6 +5,7 @@ from copy import deepcopy
 import threading
 import rospy
 from sl1m_ros.sl1m_node import Sl1mNode
+from sl1m.problem_definition import Problem
 from sl1m_ros.average_quaternion import average_quaternion
 from sl1m_ros.visualization_tools import foosteps_to_marker_array
 from pinocchio import Quaternion
@@ -46,7 +47,18 @@ class ActionServ(object):
 
         # self.footStepPlan = FootstepPlannerSl1m()
         # self.cost = {"final_com": [1.0, [0.0,0.0,0.0]]}
-        self.sl1m_node = Sl1mNode()
+        self.sl1m_nodes = [Sl1mNode(), Sl1mNode()] # for starting with left feet or right feet
+        # setup problem starting with right feet:
+        self.sl1m_nodes[1].params.limbs.reverse()
+        rospy.loginfo("Limbs for problem 0 %s" % self.sl1m_nodes[0].params.limbs)
+        rospy.loginfo("Limbs for problem 1 %s" % self.sl1m_nodes[1].params.limbs)
+        self.sl1m_nodes[1].problem = Problem(
+            limb_names=self.sl1m_nodes[1].params.limbs,
+            constraint_paths=self.sl1m_nodes[1].params.paths,
+            suffix_com=self.sl1m_nodes[1].params.suffix_com,
+            suffix_feet=self.sl1m_nodes[1].params.suffix_feet,
+        )
+
         self.color_markers = [
             [0.0, 1.0, 0.0],
             [1.0, 0.0, 0.0],
@@ -158,46 +170,46 @@ class ActionServ(object):
             raise Exception(
                 "Goal message should contain the position of the two initial contacts"
             )
-        self.sl1m_node.initial_contacts_mutex.acquire()
+        self.sl1m_nodes[0].initial_contacts_mutex.acquire()
         for i in range(2):
             side = int(goal.origin_pose[i].robot_side)
-            self.sl1m_node.initial_contacts[side][:] = [
+            self.sl1m_nodes[0].initial_contacts[side][:] = [
                 goal.origin_pose[i].location.x,
                 goal.origin_pose[i].location.y,
                 goal.origin_pose[i].location.z,
             ]
 
-            self.sl1m_node.initial_orientations[side][::] = [
+            self.sl1m_nodes[0].initial_orientations[side][::] = [
                 goal.origin_pose[i].orientation.x,
                 goal.origin_pose[i].orientation.y,
                 goal.origin_pose[i].orientation.z,
                 goal.origin_pose[i].orientation.w,
             ]
-        print("Initial contacts : ", self.sl1m_node.initial_contacts)
+        print("Initial contacts : ", self.sl1m_nodes[0].initial_contacts)
         orientation_list = average_quaternion(
-            self.sl1m_node.initial_orientations
+            self.sl1m_nodes[0].initial_orientations
         )
-        self.sl1m_node.initial_orientation = Quaternion(
+        self.sl1m_nodes[0].initial_orientation = Quaternion(
             orientation_list[3],
             orientation_list[0],
             orientation_list[1],
             orientation_list[2],
         )
-        self.sl1m_node.initial_contacts_mutex.release()
+        self.sl1m_nodes[0].initial_contacts_mutex.release()
         return
     
 
-    def set_initial_state_from_feedback(self, executed_commands):
-        self.sl1m_node.initial_contacts_mutex.acquire()
+    def set_initial_state_from_feedback(self, executed_commands, sl1m_node):
+        sl1m_node.initial_contacts_mutex.acquire()
         last_command = executed_commands[-1]
         current_side = last_command.side.side - 10
         rospy.loginfo("Set initial state from feedback, current side is : %d " % current_side)
-        self.sl1m_node.initial_contacts[current_side][:] = [
+        sl1m_node.initial_contacts[current_side][:] = [
             last_command.stance_pose.position.x,
             last_command.stance_pose.position.y,
             last_command.stance_pose.position.z,
         ]
-        self.sl1m_node.initial_orientations[current_side][::] = [
+        sl1m_node.initial_orientations[current_side][::] = [
             last_command.stance_pose.orientation.x,
             last_command.stance_pose.orientation.y,
             last_command.stance_pose.orientation.z,
@@ -214,50 +226,50 @@ class ActionServ(object):
         rospy.loginfo("Id in previous solution : %d " % id_previous_sol)
         next_position = self.previous_solution[0].all_feet_pos[next_side][id_previous_sol]
         next_rot = Quaternion(self.previous_solution[1][id_previous_sol])
-        self.sl1m_node.initial_contacts[next_side][:] = [
+        sl1m_node.initial_contacts[next_side][:] = [
             next_position[0],
             next_position[1],
             next_position[2],
         ]
-        self.sl1m_node.initial_orientations[next_side][::] = [
+        sl1m_node.initial_orientations[next_side][::] = [
             next_rot.x,
             next_rot.y, 
             next_rot.z,
             next_rot.w
         ]
 
-        print("Initial contacts : ", self.sl1m_node.initial_contacts)
+        print("Initial contacts : ", sl1m_node.initial_contacts)
         orientation_list = average_quaternion(
-            self.sl1m_node.initial_orientations
+            sl1m_node.initial_orientations
         )
-        self.sl1m_node.initial_orientation = Quaternion(
+        sl1m_node.initial_orientation = Quaternion(
             orientation_list[3],
             orientation_list[0],
             orientation_list[1],
             orientation_list[2],
         )
-        self.sl1m_node.initial_contacts_mutex.release()
+        sl1m_node.initial_contacts_mutex.release()
         return
 
-    def set_goal(self, goal):
+    def set_goal(self, goal, problem_id = 0):
         # print("Set goal called, goal message = ", goal)
         x = goal.target_pose.position.x
         y = goal.target_pose.position.y
         z = goal.target_pose.position.z
         target_ground = np.array([x, y, z])
-        target_com = [x, y, z + self.sl1m_node.params.com_height]
-        self.sl1m_node.destination_contacts_mutex.acquire()
-        self.sl1m_node.destination_orientation = Quaternion(
+        target_com = [x, y, z + self.sl1m_nodes[problem_id].params.com_height]
+        self.sl1m_nodes[problem_id].destination_contacts_mutex.acquire()
+        self.sl1m_nodes[problem_id].destination_orientation = Quaternion(
             goal.target_pose.orientation.w,
             goal.target_pose.orientation.x,
             goal.target_pose.orientation.y,
             goal.target_pose.orientation.z,
         )
-        target_end_effector_positions = [np.zeros(3) for _ in self.sl1m_node.params.limbs]
+        target_end_effector_positions = [np.zeros(3) for _ in self.sl1m_nodes[problem_id].params.limbs]
         if len(target_end_effector_positions) == 2:
-            target_end_effector_positions[0] = target_ground + self.sl1m_node.destination_orientation.matrix().dot(np.array([0, 0.1, 0]))
-            target_end_effector_positions[1] = target_ground + self.sl1m_node.destination_orientation.matrix().dot(np.array([0, -0.1, 0]))
-        self.sl1m_node.destination_contacts_mutex.release()
+            target_end_effector_positions[0] = target_ground + self.sl1m_nodes[problem_id].destination_orientation.matrix().dot(np.array([0, 0.1, 0]))
+            target_end_effector_positions[1] = target_ground + self.sl1m_nodes[problem_id].destination_orientation.matrix().dot(np.array([0, -0.1, 0]))
+        self.sl1m_nodes[problem_id].destination_contacts_mutex.release()
 
         costs = {
             # We want to reach the destination.
@@ -287,19 +299,21 @@ class ActionServ(object):
 
     def plan(self, goal):
         self.set_initial_state(goal)
-        nb_steps = self.sl1m_node.compute_nb_steps(goal)
-        costs = self.set_goal(goal)
+        nb_steps = self.sl1m_nodes[0].compute_nb_steps(goal)
+        costs = self.set_goal(goal, 0)
+        costs = self.set_goal(goal, 1) # prepare the problem for the other feet first, in case of replanning
         self.current_cost = costs
         self.current_nb_steps = nb_steps
-        self.previous_solution = self.sl1m_node.run_once(nb_steps, costs, add_initial_surface=False)
+        self.previous_solution = self.sl1m_nodes[0].run_once(nb_steps, costs, add_initial_surface=False)
         return self.previous_solution
     
     def replan(self, executed_commands):
         rospy.loginfo("SL1M replan called!!")
-        self.set_initial_state_from_feedback(executed_commands)
+        sl1m_node = self.sl1m_nodes[0] # TODO : choose depending of first foot
+        self.set_initial_state_from_feedback(executed_commands, sl1m_node)
         self.current_nb_steps -= 1
         self.previous_executed_steps = self.current_executed_steps
-        self.previous_solution = self.sl1m_node.run_once(self.current_nb_steps, self.current_cost, add_initial_surface=False)
+        self.previous_solution = sl1m_node.run_once(self.current_nb_steps, self.current_cost, add_initial_surface=False)
         if self.first_replan:
             self.first_replan = False
         return self.previous_solution
@@ -310,10 +324,10 @@ class ActionServ(object):
     def execute_cb(self, goal):
         rospy.loginfo("Executing callback of %s" % self._action_name)
         
-        if not self.sl1m_node.is_environment_valid():
+        if not self.sl1m_nodes[0].is_environment_valid():
             rospy.loginfo("Nothing to compute, surface list is empty")
             result_msg = FootStepPlanResult()
-        # elif not self.sl1m_node.is_initial_state_valid():
+        # elif not self.sl1m_nodes[0].is_initial_state_valid():
         #    rospy.loginfo('Nothing to compute, initial state is not configured')
         else:
             result, orientations = self.plan(goal)
