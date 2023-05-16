@@ -410,9 +410,10 @@ class Sl1mNode:
 
         self.plot_if_results(all_polygons, initial_contacts, result)
 
-        result_ros = self.result_to_ros_msg(result, all_polygons)
-        rospy.loginfo("Solution found, publishing it on /sl1m_ros/solution")
-        self.result_publisher.publish(result_ros)
+        if result.success:
+            result_ros = self.result_to_ros_msg(result, all_polygons)
+            rospy.loginfo("Solution found, publishing it on /sl1m_ros/solution")
+            self.result_publisher.publish(result_ros)
 
         t_end = clock()
         rospy.loginfo("Total time is: {}".format((t_end - t_start)))
