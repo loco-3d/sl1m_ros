@@ -89,6 +89,7 @@ class ActionServ(object):
         self.current_msg_seq = 1000
         self.previous_solution = None
         self.first_replan = True
+        self.previous_first_side = 0 # 0 to start with left feet first, 1 to start with right feet first
 
 
 
@@ -199,17 +200,15 @@ class ActionServ(object):
         return
     
 
-    def set_initial_state_from_feedback(self, executed_commands, sl1m_node):
+    def set_initial_state_from_feedback(self, executed_commands, sl1m_node, current_side, steps_since_last_plan):
         sl1m_node.initial_contacts_mutex.acquire()
         last_command = executed_commands[-1]
-        current_side = last_command.side.side - 10
-        rospy.loginfo("Set initial state from feedback, current side is : %d " % current_side)
-        sl1m_node.initial_contacts[current_side][:] = [
+        sl1m_node.initial_contacts[0][:] = [
             last_command.stance_pose.position.x,
             last_command.stance_pose.position.y,
             last_command.stance_pose.position.z,
         ]
-        sl1m_node.initial_orientations[current_side][::] = [
+        sl1m_node.initial_orientations[0][::] = [
             last_command.stance_pose.orientation.x,
             last_command.stance_pose.orientation.y,
             last_command.stance_pose.orientation.z,
@@ -217,21 +216,19 @@ class ActionServ(object):
         ]
 
         # now set the other side with the next contact (the one currently being executed)
-        if current_side == 1:
-            next_side = 0
-        else:
-            next_side = 1
         # compute the index of this step in the previous solution :
-        id_previous_sol = self.current_executed_steps - self.previous_executed_steps + self.first_replan
+        id_previous_sol = steps_since_last_plan # + self.first_replan
+        side_previous_solution = (1 + current_side + self.previous_first_side) %2
         rospy.loginfo("Id in previous solution : %d " % id_previous_sol)
-        next_position = self.previous_solution[0].all_feet_pos[next_side][id_previous_sol]
+        rospy.loginfo("Swing id in previous solution : %d " % side_previous_solution)
+        next_position = self.previous_solution[0].all_feet_pos[side_previous_solution][id_previous_sol]
         next_rot = Quaternion(self.previous_solution[1][id_previous_sol])
-        sl1m_node.initial_contacts[next_side][:] = [
+        sl1m_node.initial_contacts[1][:] = [
             next_position[0],
             next_position[1],
             next_position[2],
         ]
-        sl1m_node.initial_orientations[next_side][::] = [
+        sl1m_node.initial_orientations[1][::] = [
             next_rot.x,
             next_rot.y, 
             next_rot.z,
@@ -309,11 +306,18 @@ class ActionServ(object):
     
     def replan(self, executed_commands):
         rospy.loginfo("SL1M replan called!!")
-        sl1m_node = self.sl1m_nodes[0] # TODO : choose depending of first foot
-        self.set_initial_state_from_feedback(executed_commands, sl1m_node)
+        rospy.loginfo("Replan, previous number of steps : %d " % self.previous_executed_steps)
+        steps_since_last_plan = self.current_executed_steps - self.previous_executed_steps
+        rospy.loginfo("Replan, steps since last plan : %d " % steps_since_last_plan)
+        current_side = executed_commands[-1].side.side - 10
+        rospy.loginfo("Replan, previous first side : %d" % self.previous_first_side)
+        rospy.loginfo("Replan, current side in feedback %d" % current_side)
+        sl1m_node = self.sl1m_nodes[current_side] 
+        self.set_initial_state_from_feedback(executed_commands, sl1m_node, current_side, steps_since_last_plan)
         self.current_nb_steps -= 1
         self.previous_executed_steps = self.current_executed_steps
         self.previous_solution = sl1m_node.run_once(self.current_nb_steps, self.current_cost, add_initial_surface=False)
+        self.previous_first_side = current_side
         if self.first_replan:
             self.first_replan = False
         return self.previous_solution
@@ -343,6 +347,7 @@ class ActionServ(object):
         if self.replanning:
             self.current_executed_steps = None
             self.first_replan = True
+            self.first_side = 0
         self._as.set_succeeded(result_msg)
 
     def configure_cb(self, req):
@@ -376,6 +381,7 @@ class ActionServ(object):
             return
         
         if len(feedback.feedback.executed_commands) > self.current_executed_steps:
+            rospy.loginfo("Feedback, current number of steps executed : %d" % len(feedback.feedback.executed_commands))
             if self.replan_mutex.acquire(False):
                 self.current_executed_steps = len(feedback.feedback.executed_commands)
                 result, orientations = self.replan(feedback.feedback.executed_commands)
