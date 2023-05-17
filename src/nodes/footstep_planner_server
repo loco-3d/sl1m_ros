@@ -308,6 +308,11 @@ class ActionServ(object):
         self.previous_solution = self.sl1m_nodes[0].run_once(nb_steps, costs, add_initial_surface=False)
         return self.previous_solution
     
+    def validate_new_solution(self, previous_sol, current_sol, steps_diff):
+        change_side = bool(steps_diff % 2) # if true, the indexing of the side change between both solutions
+        #TODO
+        return True
+
     def replan(self, executed_commands):
         rospy.loginfo("SL1M replan called!!")
         steps_since_last_plan = self.current_executed_steps - self.previous_executed_steps        
@@ -321,12 +326,16 @@ class ActionServ(object):
         nb_steps = self.current_nb_steps - steps_since_last_plan
         sol = sl1m_node.run_once(nb_steps, self.current_cost, add_initial_surface=False)
         if sol[0].success:
-            self.previous_first_side = current_side
-            self.previous_solution = sol
-            self.current_nb_steps = nb_steps
-        return sol
+            if validate_new_solution(self.previous_solution[0], sol[0], steps_since_last_plan):
+                self.previous_first_side = current_side
+                self.previous_solution = sol
+                self.current_nb_steps = nb_steps
+                return sol
+            else:
+                rospy.logwarn("New solution is too far from the initial one, discard it.")
+        return None, None
 
-            
+
 
     # Callback functions
     def execute_cb(self, goal):
@@ -390,7 +399,7 @@ class ActionServ(object):
                 result, orientations = self.replan(feedback.feedback.executed_commands)
                 self.replan_mutex.release()
                 print("result of replanning = ", result)
-                if result.success:
+                if result is not None:
                     self.previous_executed_steps = self.current_executed_steps
                     self.visualize_footsteps(result.all_feet_pos, orientations)
                     result_msg = self.convert_to_execution_msg(result.all_feet_pos, orientations)
