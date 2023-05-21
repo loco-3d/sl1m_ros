@@ -340,7 +340,12 @@ class ActionServ(object):
         rospy.loginfo("Replan, current side in feedback %d" % current_side)
         sl1m_node = self.sl1m_nodes[current_side] 
         self.set_initial_state_from_feedback(executed_commands, sl1m_node, current_side, steps_since_last_plan)
-        nb_steps = self.current_nb_steps - steps_since_last_plan
+        #nb_steps = self.current_nb_steps - steps_since_last_plan
+        nb_steps = sl1m_node.compute_nb_steps(self.current_goal)
+        rospy.loginfo("Num steps: %d" % nb_steps)
+        if nb_steps < 6:
+            rospy.logwarn("Replan: number of steps remaining under treshold. Do not compute new plan")
+            return None, None
         sol = sl1m_node.run_once(nb_steps, self.current_cost, add_initial_surface=False)
         if sol[0].success:
             if self.validate_new_solution(self.previous_solution[0], sol[0], steps_since_last_plan):

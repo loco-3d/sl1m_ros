@@ -122,6 +122,7 @@ class Sl1mParameters:
         ret += "    - plot = " + str(self.plot) + "\n"
         ret += "    - costs = " + str(self.costs) + "\n"
         ret += "    - step_length = " + str(self.step_length) + "\n"
+        ret += "    - nb_steps_max = " + str(self.nb_steps_max) + "\n"
         ret += "    - rate = " + str(self.rate) + "\n"
         ret += "    - optimize_com = " + str(self.optimize_com) + "\n"
         ret += "    - com_height = " + str(self.com_height) + "\n"

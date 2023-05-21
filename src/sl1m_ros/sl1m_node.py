@@ -298,6 +298,8 @@ class Sl1mNode:
         print("distance ", distance)
         print("distance_yaw ", distance_yaw)
         print("self.params.step_length = ", self.params.step_length)
+        print("Num steps based on translation = ", distance / abs(self.params.step_length[0]))
+        print("Max num steps defined = ", self.params.nb_steps_max)
         nb_step = int(
             math.ceil(
                 min(
