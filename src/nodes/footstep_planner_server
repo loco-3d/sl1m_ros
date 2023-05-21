@@ -10,7 +10,6 @@ from sl1m.problem_definition import Problem
 from sl1m_ros.average_quaternion import average_quaternion
 from sl1m_ros.visualization_tools import foosteps_to_marker_array
 from pinocchio import Quaternion
-import signal
 
 from visualization_msgs.msg import MarkerArray
 
@@ -21,8 +20,6 @@ from pal_footstep_planner_msgs.msg import FootstepData
 from pal_locomotion_msgs.msg import ExecFootStepsActionFeedback, ExecFootStepsActionGoal, VelocityCommandMsg
 from std_srvs.srv import TriggerResponse, Trigger
 
-def timeout_handler(signum, frame):
-    raise Exception("Sl1m did not solve the problem before the timeout!")
 
 class ActionServ(object):
     def __init__(self, name):
@@ -96,9 +93,6 @@ class ActionServ(object):
         self.current_msg_seq = 1000
         self.previous_solution = None
         self.previous_first_side = 0 # 0 to start with left feet first, 1 to start with right feet first
-        self.sl1m_timeout = 5
-        signal.signal(signal.SIGALRM, timeout_handler)
-
 
 
     def convert_to_planner_result_msg(self, feet_positions, orientations):
@@ -423,7 +417,6 @@ class ActionServ(object):
             rospy.loginfo("Feedback, current number of steps executed : %d" % len(feedback.feedback.executed_commands))
             if self.replan_mutex.acquire(False):
                 self.current_executed_steps = len(feedback.feedback.executed_commands)
-                signal.alarm(self.sl1m_timeout)
                 try:
                     result, orientations = self.replan(feedback.feedback.executed_commands)
                 except Exception as exc:
