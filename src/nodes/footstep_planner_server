@@ -77,6 +77,10 @@ class ActionServ(object):
             self.foot_size[1] = rospy.get_param(
                 "/biped_walking_dcm_controller/biped_parameters/foot_description/foot_with"
             )
+        self.replanning = False
+        if rospy.has_param("/sl1m/replanning"):
+            self.replanning = rospy.get_param("/sl1m/replanning")
+            
         self._as.start()
         self.init_feet_lever_arm = []
         # TODO : protect with mutex, only allow one plan() or replan() method running at the same time. 
@@ -86,7 +90,6 @@ class ActionServ(object):
         self.current_nb_steps = None
         self.current_executed_steps = None
         self.previous_executed_steps = None
-        self.replanning = True
         self.current_msg_seq = 1000
         self.previous_solution = None
         self.previous_first_side = 0 # 0 to start with left feet first, 1 to start with right feet first
