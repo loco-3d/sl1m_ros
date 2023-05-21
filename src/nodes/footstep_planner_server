@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 
 import numpy as np
+from numpy.linalg import norm
 from copy import deepcopy
 import threading
 import rospy
@@ -308,9 +309,23 @@ class ActionServ(object):
         self.previous_solution = self.sl1m_nodes[0].run_once(nb_steps, costs, add_initial_surface=False)
         return self.previous_solution
     
-    def validate_new_solution(self, previous_sol, current_sol, steps_diff):
-        change_side = bool(steps_diff % 2) # if true, the indexing of the side change between both solutions
-        #TODO
+    def validate_new_solution(self, previous_sol, current_sol, steps_diff, treshold_distance = 0.2):
+        change_side = steps_diff % 2 # if true, the indexing of the side change between both solutions
+        pos1_current = current_sol.all_feet_pos[0][1]
+        pos2_current =  current_sol.all_feet_pos[1][2]
+        rospy.logdebug("validate solution:")
+        pos1_previous = previous_sol.all_feet_pos[change_side][1+steps_diff]
+        pos2_previous =  previous_sol.all_feet_pos[(change_side + 1) % 2][2+steps_diff]
+        rospy.logdebug("pos 1 current : %s" % pos1_current)
+        rospy.logdebug("pos 1 previous: %s" % pos1_previous)
+        rospy.logdebug("pos 2 current : %s" % pos2_current)
+        rospy.logdebug("pos 2 previous: %s" % pos2_previous)
+        if norm(np.array(pos1_current - pos1_previous)) > treshold_distance:
+            rospy.logwarn("First step of the new solution is too far from the original solution, discard solution.")
+            return False
+        if norm(np.array(pos2_current - pos2_previous)) > treshold_distance:
+            rospy.logwarn("Second step of the new solution is too far from the original solution, discard solution.")
+            return False   
         return True
 
     def replan(self, executed_commands):
@@ -326,7 +341,7 @@ class ActionServ(object):
         nb_steps = self.current_nb_steps - steps_since_last_plan
         sol = sl1m_node.run_once(nb_steps, self.current_cost, add_initial_surface=False)
         if sol[0].success:
-            if validate_new_solution(self.previous_solution[0], sol[0], steps_since_last_plan):
+            if self.validate_new_solution(self.previous_solution[0], sol[0], steps_since_last_plan):
                 self.previous_first_side = current_side
                 self.previous_solution = sol
                 self.current_nb_steps = nb_steps
