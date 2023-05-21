@@ -366,11 +366,15 @@ class ActionServ(object):
         #    rospy.loginfo('Nothing to compute, initial state is not configured')
         else:
             result, orientations = self.plan(goal)
-            result_msg = self.convert_to_planner_result_msg(
-                result.all_feet_pos, orientations
-            )
-            print("result = ", result)
-            self.visualize_footsteps(result.all_feet_pos, orientations)
+            if result.success:
+                result_msg = self.convert_to_planner_result_msg(
+                    result.all_feet_pos, orientations
+                )
+                print("result = ", result)
+                self.visualize_footsteps(result.all_feet_pos, orientations)
+            else:
+                self._as.set_aborted(None, "Sl1m did not converge.")
+                return
         rospy.loginfo(
             "Callback return succeed for Action %s" % self._action_name
         )
