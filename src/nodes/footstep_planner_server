@@ -311,7 +311,7 @@ class ActionServ(object):
         self.previous_solution = self.sl1m_nodes[0].run_once(nb_steps, costs, add_initial_surface=False)
         return self.previous_solution
     
-    def validate_new_solution(self, previous_sol, current_sol, steps_diff, treshold_distance = 0.2):
+    def validate_new_solution(self, previous_sol, current_sol, steps_diff, treshold_distance = 0.3):
         change_side = steps_diff % 2 # if true, the indexing of the side change between both solutions
         pos1_current = current_sol.all_feet_pos[0][1]
         pos2_current =  current_sol.all_feet_pos[1][2]
