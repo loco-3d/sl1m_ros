@@ -301,6 +301,7 @@ class ActionServ(object):
         self.visualize_publisher.publish(marker_array)
 
     def plan(self, goal):
+        self.current_goal = goal
         self.set_initial_state(goal)
         nb_steps = self.sl1m_nodes[0].compute_nb_steps(goal)
         costs = self.set_goal(goal, 0)
