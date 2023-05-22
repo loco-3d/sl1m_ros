@@ -65,6 +65,8 @@ class SurfaceProcessingParams:
         self.poly_size = 10
         # Area under which the remaining surfaces is delated.
         self.min_area = 0.03
+        # surfaces above this height will be ignored.
+        self.max_height = 0.5
 
         if filename is not None:
             self.parseFile(filename)
@@ -86,3 +88,4 @@ class SurfaceProcessingParams:
         self.poly_size = config["walkgen_params"]["params"]["poly_size"]
         self.min_area = config["walkgen_params"]["params"]["min_area"]
         self.margin = config["walkgen_params"]["params"]["margin"]
+        self.max_height = config["walkgen_params"]["params"]["max_height"]

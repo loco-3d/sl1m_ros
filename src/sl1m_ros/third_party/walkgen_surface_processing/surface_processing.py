@@ -83,6 +83,7 @@ class SurfaceProcessing:
         self._min_area = self._params.min_area
         self._margin = self._params.margin
         self._offsets = 0.
+        self._max_height = self._params.max_height
 
         self._offsets_clearmap = 0.02 # (initial_height + offsets_clearmap) height under which the surfaces are removed.
         self._clearmap = False # Boolean to remove the some of the ground surfaces.
@@ -129,8 +130,13 @@ class SurfaceProcessing:
             margin_outer=self._margin,
             clearmap= self._clearmap,
             clearmap_limit= (self._initial_height + self._offsets_clearmap) )
+        
+        filtered_surfaces = []
+        for surface in surfaces_processed:
+            if surface[0][2] < self._max_height:
+                filtered_surfaces.append(surface)
 
-        return dict(zip([str(k) for k in range(len(surfaces_processed))], [sf.tolist() for sf in surfaces_processed]))
+        return dict(zip([str(k) for k in range(len(filtered_surfaces))], [sf.tolist() for sf in filtered_surfaces]))
 
     def set_offset_clearmap(self, offset):
         """ Offset from which all surfaces under the initial height + offset will be removed if the boolean clearmap is active.
