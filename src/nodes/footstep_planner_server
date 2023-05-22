@@ -60,10 +60,9 @@ class ActionServ(object):
             suffix_feet=self.sl1m_nodes[1].params.suffix_feet,
         )
 
-        self.color_markers = [
-            [0.0, 1.0, 0.0],
-            [1.0, 0.0, 0.0],
-        ]  # green for left and red for right side
+        lf_color = [0.0, 1.0, 0.0]
+        rf_color = [1.0, 0.0, 0.0]
+        self.color_markers = [[lf_color, rf_color], [rf_color, lf_color]]  # green for left and red for right side
         self.foot_size = [0.2,0.1, 0.02]
         if rospy.has_param(
             "/biped_walking_dcm_controller/biped_parameters/foot_description/foot_length"
@@ -288,14 +287,14 @@ class ActionServ(object):
         rospy.loginfo("costs : {}".format(costs))
         return costs
 
-    def visualize_footsteps(self, feet_positions, orientations):
+    def visualize_footsteps(self, feet_positions, orientations, current_side = 0):
         self.visualize_publisher.publish(MarkerArray())
         marker_array = foosteps_to_marker_array(
             feet_positions,
             orientations,
             rospy.Time.now(),
             self.foot_size,
-            self.color_markers,
+            self.color_markers[current_side],
         )
         # print("Marker array for visualization size : ", len(marker_array.markers))
         # print("array : ", marker_array)
@@ -345,17 +344,17 @@ class ActionServ(object):
         rospy.loginfo("Num steps: %d" % nb_steps)
         if nb_steps < 6:
             rospy.logwarn("Replan: number of steps remaining under treshold. Do not compute new plan")
-            return None, None
+            return None, None, None
         sol = sl1m_node.run_once(nb_steps, self.current_cost, add_initial_surface=False)
         if sol[0].success:
             if self.validate_new_solution(self.previous_solution[0], sol[0], steps_since_last_plan):
                 self.previous_first_side = current_side
                 self.previous_solution = sol
                 self.current_nb_steps = nb_steps
-                return sol
+                return sol[0], sol[1], current_side
             else:
                 rospy.logwarn("New solution is too far from the initial one, discard it.")
-        return None, None
+        return None, None, None
 
 
 
@@ -423,7 +422,7 @@ class ActionServ(object):
             if self.replan_mutex.acquire(False):
                 self.current_executed_steps = len(feedback.feedback.executed_commands)
                 try:
-                    result, orientations = self.replan(feedback.feedback.executed_commands)
+                    result, orientations, current_side = self.replan(feedback.feedback.executed_commands)
                 except Exception as exc:
                     print(exc)
                     result = None
@@ -431,7 +430,7 @@ class ActionServ(object):
                 if result is not None:
                     print("result of replanning = ", result)
                     self.previous_executed_steps = self.current_executed_steps
-                    self.visualize_footsteps(result.all_feet_pos, orientations)
+                    self.visualize_footsteps(result.all_feet_pos, orientations, current_side)
                     result_msg = self.convert_to_execution_msg(result.all_feet_pos, orientations)
                     self.fsp_execution_publisher.publish(result_msg)
                 else:
