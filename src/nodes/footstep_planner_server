@@ -343,7 +343,7 @@ class ActionServ(object):
         #nb_steps = self.current_nb_steps - steps_since_last_plan
         nb_steps = sl1m_node.compute_nb_steps(self.current_goal)
         rospy.loginfo("Num steps: %d" % nb_steps)
-        if nb_steps < 6:
+        if nb_steps < 4:
             rospy.logwarn("Replan: number of steps remaining under treshold. Do not compute new plan")
             return None, None, None
         sol = sl1m_node.run_once(nb_steps, self.current_cost, add_initial_surface=False)

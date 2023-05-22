@@ -306,7 +306,7 @@ class Sl1mNode:
                     max(
                         distance / abs(self.params.step_length[0]),
                         distance_yaw / abs(self.params.step_length[1]),
-                        2,
+                        1,
                     ),
                     self.params.nb_steps_max,
                 )
