@@ -39,11 +39,6 @@ class ActionServ(object):
             "/footstep_list", MarkerArray, queue_size=10
         )
 
-        self.fsp_execution_publisher = rospy.Publisher(
-            "/biped_walking_dcm_controller/footsteps_execution/goal",
-            ExecFootStepsActionGoal, queue_size=1)
-
-        rospy.Subscriber("/biped_walking_dcm_controller/footsteps_execution/feedback",ExecFootStepsActionFeedback , self.feedback_cb)
 
 
 
@@ -81,6 +76,14 @@ class ActionServ(object):
         if rospy.has_param("/sl1m/replanning"):
             self.replanning = rospy.get_param("/sl1m/replanning")
             
+        if self.replanning:
+            self.fsp_execution_publisher = rospy.Publisher(
+            "/biped_walking_dcm_controller/footsteps_execution/goal",
+            ExecFootStepsActionGoal, queue_size=1)
+
+            rospy.Subscriber("/biped_walking_dcm_controller/footsteps_execution/feedback",ExecFootStepsActionFeedback , self.feedback_cb)
+
+
         self._as.start()
         self.init_feet_lever_arm = []
         # TODO : protect with mutex, only allow one plan() or replan() method running at the same time. 
