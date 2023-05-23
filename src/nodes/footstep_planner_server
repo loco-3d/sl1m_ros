@@ -12,6 +12,7 @@ from sl1m_ros.visualization_tools import foosteps_to_marker_array
 from pinocchio import Quaternion
 
 from visualization_msgs.msg import MarkerArray
+from geometry_msgs.msg import Pose
 
 # Imports for the action server
 import actionlib
@@ -202,8 +203,9 @@ class ActionServ(object):
             orientation_list[1],
             orientation_list[2],
         )
+        initial_contacts = deepcopy(self.sl1m_nodes[0].initial_contacts)
         self.sl1m_nodes[0].initial_contacts_mutex.release()
-        return
+        return initial_contacts
     
 
     def set_initial_state_from_feedback(self, executed_commands, sl1m_node, current_side, steps_since_last_plan):
@@ -255,22 +257,23 @@ class ActionServ(object):
             orientation_list[1],
             orientation_list[2],
         )
+        initial_contacts = deepcopy(sl1m_node.initial_contacts)
         sl1m_node.initial_contacts_mutex.release()
-        return
+        return initial_contacts
 
-    def set_goal(self, goal, problem_id = 0):
+    def set_goal(self, goal_pose, problem_id = 0):
         # print("Set goal called, goal message = ", goal)
-        x = goal.target_pose.position.x
-        y = goal.target_pose.position.y
-        z = goal.target_pose.position.z
+        x = goal_pose.position.x
+        y = goal_pose.position.y
+        z = goal_pose.position.z
         target_ground = np.array([x, y, z])
         target_com = [x, y, z + self.sl1m_nodes[problem_id].params.com_height]
         self.sl1m_nodes[problem_id].destination_contacts_mutex.acquire()
         self.sl1m_nodes[problem_id].destination_orientation = Quaternion(
-            goal.target_pose.orientation.w,
-            goal.target_pose.orientation.x,
-            goal.target_pose.orientation.y,
-            goal.target_pose.orientation.z,
+            goal_pose.orientation.w,
+            goal_pose.orientation.x,
+            goal_pose.orientation.y,
+            goal_pose.orientation.z,
         )
         target_end_effector_positions = [np.zeros(3) for _ in self.sl1m_nodes[problem_id].params.limbs]
         if len(target_end_effector_positions) == 2:
@@ -304,12 +307,37 @@ class ActionServ(object):
         # print("array : ", marker_array)
         self.visualize_publisher.publish(marker_array)
 
+    def get_goal_pose(self, goal, initial_contacts):
+        goal_pose = goal.target_pose
+        if not self.replanning:
+            return goal_pose
+        initial_target = np.array([goal_pose.position.x,
+                                goal_pose.position.y,
+                                goal_pose.position.z])
+        initial_position = sum(initial_contacts)
+        initial_position /= len(initial_contacts)
+        vect = (initial_target - initial_position)[:2] # only consider x,y translation
+        distance = norm(vect) 
+        rospy.loginfo("Adapt goal, current target : %s" % initial_target)
+        rospy.loginfo("Distance to goal : %f" % distance)
+        if abs(distance) > self.sl1m_nodes[0].params.max_goal_distance:
+            new_target = initial_position[:2] + vect / distance * self.sl1m_nodes[0].params.max_goal_distance
+            adapted_goal = Pose(deepcopy(goal_pose.position), deepcopy(goal_pose.orientation))
+            adapted_goal.position.x = new_target[0]
+            adapted_goal.position.y = new_target[1]
+            rospy.loginfo("Adapted goal : %s " % new_target)
+            return adapted_goal
+        else:
+            return goal_pose
+
+
     def plan(self, goal):
         self.current_goal = goal
-        self.set_initial_state(goal)
-        nb_steps = self.sl1m_nodes[0].compute_nb_steps(goal)
-        costs = self.set_goal(goal, 0)
-        costs = self.set_goal(goal, 1) # prepare the problem for the other feet first, in case of replanning
+        initial_contacts = self.set_initial_state(goal)
+        goal_pose = self.get_goal_pose(goal, initial_contacts)
+        nb_steps = self.sl1m_nodes[0].compute_nb_steps(goal_pose)
+        costs = self.set_goal(goal_pose, 0)
+        costs = self.set_goal(goal_pose, 1) # prepare the problem for the other feet first, in case of replanning
         self.current_cost = costs
         self.current_nb_steps = nb_steps
         self.previous_solution = self.sl1m_nodes[0].run_once(nb_steps, costs, add_initial_surface=False)
@@ -343,15 +371,17 @@ class ActionServ(object):
         rospy.loginfo("Replan, previous first side : %d" % self.previous_first_side)
         rospy.loginfo("Replan, current side in feedback %d" % current_side)
         sl1m_node = self.sl1m_nodes[current_side] 
-        self.set_initial_state_from_feedback(executed_commands, sl1m_node, current_side, steps_since_last_plan)
+        initial_contacts = self.set_initial_state_from_feedback(executed_commands, sl1m_node, current_side, steps_since_last_plan)
+        goal_pose = self.get_goal_pose(self.current_goal, initial_contacts)
         #nb_steps = self.current_nb_steps - steps_since_last_plan
-        nb_steps = sl1m_node.compute_nb_steps(self.current_goal)
+        nb_steps = sl1m_node.compute_nb_steps(goal_pose)
         rospy.loginfo("Num steps: %d" % nb_steps)
         if nb_steps < MIN_STEPS_REPLANNING:
             self.current_nb_steps = nb_steps
             rospy.logwarn("Replan: number of steps remaining under treshold. Do not compute new plan")
             return None, None, None
-        sol = sl1m_node.run_once(nb_steps, self.current_cost, add_initial_surface=False)
+        costs = self.set_goal(goal_pose, current_side)
+        sol = sl1m_node.run_once(nb_steps, costs, add_initial_surface=False)
         if sol[0].success:
             if self.validate_new_solution(self.previous_solution[0], sol[0], steps_since_last_plan):
                 self.previous_first_side = current_side
