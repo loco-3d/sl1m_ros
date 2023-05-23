@@ -27,6 +27,10 @@ class Sl1mParameters:
         self.com_height = 0.87
         self.initial_surface_width = 0.8
         self.initial_surface_length = 1.0
+        self.max_goal_distance = 1.
+        self.end_effector_cost_weight = 1.
+        self.step_length_cost_weight = 1.
+        self.step_length_cost_ref = [0.1, 0.]
 
         # private params
         self._numerical_solver = "GUROBI"
@@ -61,6 +65,11 @@ class Sl1mParameters:
         self.com_height = self._get_param("sl1m/com_height")
         self.initial_surface_width = self._get_param("sl1m/initial_surface_width")
         self.initial_surface_length = self._get_param("sl1m/initial_surface_length")
+        self.max_goal_distance = self._get_param("sl1m/max_goal_distance")
+        self.end_effector_cost_weight = self._get_param("sl1m/end_effector_cost_weight")
+        self.step_length_cost_weight = self._get_param("sl1m/step_length_cost_weight")
+        self.step_length_cost_ref = self._get_param("sl1m/step_length_cost_ref")
+
 
         # Fetch the data from the paths
         assert type(self.paths) is list
@@ -92,6 +101,14 @@ class Sl1mParameters:
         assert type(self.com_height) is float
         assert type(self.initial_surface_width) is float
         assert type(self.initial_surface_length) is float
+        assert type(self.max_goal_distance) is float
+        assert type(self.end_effector_cost_weight) is float
+        assert type(self.step_length_cost_weight) is float
+        assert type(self.step_length_cost_ref) is list
+        assert(len(self.step_length_cost_ref) == 2)
+        for val in self.step_length_cost_ref:
+            assert type(val) is float
+
 
         for i in range(len(self.gait)):
             self.gait[i] = np.array(self.gait[i])
@@ -128,5 +145,9 @@ class Sl1mParameters:
         ret += "    - com_height = " + str(self.com_height) + "\n"
         ret += "    - initial_surface_width = " + str(self.initial_surface_width) + "\n"
         ret += "    - initial_surface_length = " + str(self.initial_surface_length) + "\n"
+        ret += "    - max_goal_distance = " + str(self.max_goal_distance) + "\n"
+        ret += "    - end_effector_cost_weight = " + str(self.end_effector_cost_weight) + "\n"
+        ret += "    - step_length_cost_weight = " + str(self.step_length_cost_weight) + "\n"
+        ret += "    - step_length_cost_ref = " + str(self.step_length_cost_ref) + "\n"
 
         return ret
