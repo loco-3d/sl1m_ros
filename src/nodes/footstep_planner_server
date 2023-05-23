@@ -282,11 +282,11 @@ class ActionServ(object):
             # We want to reach the destination.
             # "final_com": [10, target_com],
             # We want to have the feet aligned with the CoM in the coronal plane.
-            "end_effector_positions": [100.0, target_end_effector_positions],
+            "end_effector_positions": [1.0, target_end_effector_positions],
             # We want to keep a posture close to the half-sitting one
             # "posture": [10.0],
             # Default offset from the optimal
-            "step_size": [1., [0.1, 0.0]]
+            "step_size": [5., [0.1, 0.0]]
         }
         rospy.loginfo("costs : {}".format(costs))
         return costs
