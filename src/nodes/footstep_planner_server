@@ -20,6 +20,7 @@ from pal_footstep_planner_msgs.msg import FootstepData
 from pal_locomotion_msgs.msg import ExecFootStepsActionFeedback, ExecFootStepsActionGoal, VelocityCommandMsg
 from std_srvs.srv import TriggerResponse, Trigger
 
+MIN_STEPS_REPLANNING = 4 # minimum number of steps remaining to use replanning
 
 class ActionServ(object):
     def __init__(self, name):
@@ -343,7 +344,8 @@ class ActionServ(object):
         #nb_steps = self.current_nb_steps - steps_since_last_plan
         nb_steps = sl1m_node.compute_nb_steps(self.current_goal)
         rospy.loginfo("Num steps: %d" % nb_steps)
-        if nb_steps < 4:
+        if nb_steps < MIN_STEPS_REPLANNING:
+            self.current_nb_steps = nb_steps
             rospy.logwarn("Replan: number of steps remaining under treshold. Do not compute new plan")
             return None, None, None
         sol = sl1m_node.run_once(nb_steps, self.current_cost, add_initial_surface=False)
@@ -414,7 +416,7 @@ class ActionServ(object):
         if feedback.feedback.executed_commands[-1].support_type.support_type != 22:
             rospy.loginfo("Feedback received do not end with a SS phase : %d" % feedback.feedback.executed_commands[-1].support_type.support_type)
             return
-        if self.current_nb_steps <= 2:
+        if self.current_nb_steps < MIN_STEPS_REPLANNING:
             rospy.loginfo("Feedback received but initial number of planned step have been executed already")
             return
         
