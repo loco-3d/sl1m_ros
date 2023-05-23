@@ -274,9 +274,9 @@ class Sl1mNode:
         else:
             destination_position = np.array(
                 [
-                    destination.target_pose.position.x,
-                    destination.target_pose.position.y,
-                    destination.target_pose.position.z,
+                    destination.position.x,
+                    destination.position.y,
+                    destination.position.z,
                 ]
             )
         destination_orientation = self.destination_orientation
